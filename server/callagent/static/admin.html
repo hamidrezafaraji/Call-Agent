@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Call Agent Admin</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #fff; --fg: #111827; --muted: #6b7280; --line: #e5e7eb;
+    --accent: #2563eb; --accent-fg: #fff; --ok: #15803d; --ok-bg: #dcfce7;
+    --wait: #b45309; --wait-bg: #fef3c7; --bad: #b91c1c; --bad-bg: #fee2e2;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115; --card: #181b21; --fg: #e5e7eb; --muted: #9ca3af; --line: #2a2f38;
+      --accent: #3b82f6; --ok: #4ade80; --ok-bg: #14301f; --wait: #fbbf24; --wait-bg: #3a2c0b;
+      --bad: #f87171; --bad-bg: #3b1515; color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 15px/1.6 Tahoma, "Segoe UI", sans-serif; }
+  main { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+  h1 { font-size: 20px; margin: 0 0 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+          padding: 16px; margin-bottom: 16px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  input { flex: 1; min-width: 180px; padding: 9px 12px; border: 1px solid var(--line);
+          border-radius: 8px; background: var(--bg); color: var(--fg); font: inherit; }
+  button { padding: 8px 14px; border: 1px solid var(--line); border-radius: 8px;
+           background: var(--card); color: var(--fg); font: inherit; cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+  button.danger { color: var(--bad); }
+  button:disabled { opacity: .5; cursor: default; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .ltr { direction: ltr; unicode-bidi: embed; font-family: ui-monospace, Consolas, monospace; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: right; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  th { color: var(--muted); font-weight: normal; font-size: 13px; }
+  td.actions { white-space: nowrap; text-align: left; }
+  td.actions button { padding: 5px 10px; font-size: 13px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; }
+  .badge.active { color: var(--ok); background: var(--ok-bg); }
+  .badge.pending { color: var(--wait); background: var(--wait-bg); }
+  .badge.revoked { color: var(--bad); background: var(--bad-bg); }
+  .warn { color: var(--wait); }
+  .error { color: var(--bad); margin-top: 8px; }
+  .hidden { display: none !important; }
+  dialog { border: 0; border-radius: 14px; padding: 24px; background: var(--card); color: var(--fg);
+           max-width: min(92vw, 380px); text-align: center; }
+  dialog::backdrop { background: rgba(0,0,0,.5); }
+  .qr { background: #fff; border-radius: 10px; padding: 8px; display: inline-block; line-height: 0; }
+  .qr svg { width: 260px; height: 260px; }
+  .code { font-size: 22px; letter-spacing: 2px; margin: 12px 0 4px; }
+  @media (max-width: 640px) {
+    thead { display: none; }
+    tr { display: block; border-bottom: 1px solid var(--line); padding: 8px 0; }
+    td { display: flex; justify-content: space-between; border: 0; padding: 4px 0; }
+    td::before { content: attr(data-label); color: var(--muted); font-size: 13px; }
+    td.actions { justify-content: flex-start; gap: 6px; }
+    td.actions::before { content: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>مدیریت گوشی‌های کارشناسان</h1>
+
+  <section id="login" class="card">
+    <p>کلید مدیریت را وارد کنید. اگر آن را تنظیم نکرده‌اید، در فایل <span class="ltr">data/admin.key</span> روی سرور ساخته شده است.</p>
+    <form class="row" id="login-form">
+      <input id="key" type="password" autocomplete="current-password" placeholder="کلید مدیریت" required>
+      <button class="primary">ورود</button>
+    </form>
+    <div id="login-error" class="error hidden"></div>
+  </section>
+
+  <section id="app" class="hidden">
+    <div class="card">
+      <div class="row" style="justify-content: space-between">
+        <div>آدرس سرور برای گوشی‌ها: <span id="server" class="ltr"></span></div>
+        <button id="logout">خروج</button>
+      </div>
+      <div id="server-warn" class="muted warn hidden">
+        این آدرس خودکار تشخیص داده شده است. اگر گوشی‌ها از آن به سرور نمی‌رسند،
+        <span class="ltr">CALLAGENT_PUBLIC_URL</span> را در فایل <span class="ltr">.env</span> تنظیم کنید.
+        <span id="other-addresses"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <form class="row" id="add-form">
+        <input id="name" maxlength="100" placeholder="نام کارشناس (مثلاً علی محمدی)" required>
+        <button class="primary">افزودن گوشی</button>
+      </form>
+      <div id="add-error" class="error hidden"></div>
+    </div>
+
+    <div class="card">
+      <table>
+        <thead><tr><th>کارشناس</th><th>وضعیت</th><th>گوشی</th><th>آخرین ارتباط</th><th></th></tr></thead>
+        <tbody id="devices"></tbody>
+      </table>
+      <p id="empty" class="muted hidden">هنوز گوشی‌ای اضافه نشده است.</p>
+    </div>
+  </section>
+</main>
+
+<dialog id="qr-dialog">
+  <h2 id="qr-title" style="font-size:17px;margin:0 0 12px"></h2>
+  <div class="qr" id="qr-img"></div>
+  <div class="code ltr" id="qr-code"></div>
+  <p class="muted" id="qr-expiry"></p>
+  <p class="muted">این کد را با اپ Call Agent روی گوشی کارشناس اسکن کنید. هر کد فقط یک بار قابل استفاده است.</p>
+  <form method="dialog"><button>بستن</button></form>
+</dialog>
+
+<script>
+(function () {
+  "use strict";
+  var KEY_STORE = "callagent.adminKey";
+  var STATUS = { active: "فعال", pending: "در انتظار اسکن", revoked: "غیرفعال" };
+  var $ = function (id) { return document.getElementById(id); };
+  var key = null;
+  try { key = sessionStorage.getItem(KEY_STORE); } catch (e) {}
+
+  function api(method, path, body) {
+    var opts = { method: method, headers: { "X-API-Key": key || "" } };
+    if (body) { opts.headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(body); }
+    return fetch(path, opts).then(function (r) {
+      if (r.status === 401) { logout(); throw new Error("کلید مدیریت نادرست است."); }
+      if (!r.ok) return r.json().catch(function () { return {}; }).then(function (j) {
+        throw new Error(j.detail || ("خطا " + r.status));
+      });
+      return (r.headers.get("content-type") || "").indexOf("json") >= 0 ? r.json() : r.text();
+    });
+  }
+
+  function show(el, on) { el.classList.toggle("hidden", !on); }
+
+  function fmtDate(iso) {
+    if (!iso) return "—";
+    try {
+      return new Date(iso).toLocaleString("fa-IR", { dateStyle: "short", timeStyle: "short" });
+    } catch (e) { return iso; }
+  }
+
+  function cell(label, content) {
+    var td = document.createElement("td");
+    td.setAttribute("data-label", label);
+    if (content instanceof Node) td.appendChild(content); else td.textContent = content;
+    return td;
+  }
+
+  function button(text, cls, onClick) {
+    var b = document.createElement("button");
+    b.type = "button"; b.textContent = text; if (cls) b.className = cls;
+    b.addEventListener("click", onClick);
+    return b;
+  }
+
+  function render(devices) {
+    var tbody = $("devices");
+    tbody.textContent = "";
+    show($("empty"), devices.length === 0);
+    devices.forEach(function (d) {
+      var tr = document.createElement("tr");
+      tr.appendChild(cell("کارشناس", d.name));
+      var badge = document.createElement("span");
+      badge.className = "badge " + d.status;
+      badge.textContent = STATUS[d.status] || d.status;
+      tr.appendChild(cell("وضعیت", badge));
+      var phone = [d.brand, d.model].filter(Boolean).join(" ");
+      if (d.android_version) phone += " — اندروید " + d.android_version;
+      tr.appendChild(cell("گوشی", phone || "—"));
+      tr.appendChild(cell("آخرین ارتباط", fmtDate(d.last_seen_at)));
+
+      var actions = document.createElement("td");
+      actions.className = "actions";
+      if (d.status !== "revoked") {
+        if (d.activation_code) {
+          actions.appendChild(button("نمایش QR", "primary", function () { openQr(d); }));
+        } else {
+          actions.appendChild(button("QR گوشی جدید", "", function () {
+            api("POST", "/api/admin/devices/" + d.id + "/new-code").then(function (nd) { load(); openQr(nd); });
+          }));
+        }
+        actions.appendChild(button("غیرفعال‌کردن", "danger", function () {
+          if (!confirm("گوشی «" + d.name + "» غیرفعال شود؟ این گوشی دیگر نمی‌تواند تماس ارسال کند.")) return;
+          api("POST", "/api/admin/devices/" + d.id + "/revoke").then(load);
+        }));
+      }
+      tr.appendChild(actions);
+      tbody.appendChild(tr);
+    });
+  }
+
+  function openQr(d) {
+    $("qr-title").textContent = "فعال‌سازی گوشی " + d.name;
+    $("qr-code").textContent = d.activation_code;
+    $("qr-expiry").textContent = "اعتبار تا " + fmtDate(d.activation_expires_at);
+    $("qr-img").textContent = "";
+    api("GET", "/api/admin/devices/" + d.id + "/qr.svg").then(function (svg) {
+      $("qr-img").innerHTML = svg; // generated by our own server
+    });
+    $("qr-dialog").showModal();
+  }
+
+  function load() {
+    return api("GET", "/api/admin/devices").then(render);
+  }
+
+  function start() {
+    return api("GET", "/api/admin/server-info").then(function (info) {
+      $("server").textContent = info.server;
+      show($("server-warn"), !info.public_url_configured);
+      $("other-addresses").textContent = (info.other_addresses || []).length
+        ? "آدرس‌های دیگر این سرور: " + info.other_addresses.join("، ") : "";
+      show($("login"), false);
+      show($("app"), true);
+      return load();
+    });
+  }
+
+  function logout() {
+    key = null;
+    try { sessionStorage.removeItem(KEY_STORE); } catch (e) {}
+    show($("app"), false);
+    show($("login"), true);
+  }
+
+  $("login-form").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    key = $("key").value.trim();
+    show($("login-error"), false);
+    start().then(function () {
+      try { sessionStorage.setItem(KEY_STORE, key); } catch (e) {}
+    }).catch(function (e) {
+      $("login-error").textContent = e.message;
+      show($("login-error"), true);
+    });
+  });
+
+  $("add-form").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    show($("add-error"), false);
+    api("POST", "/api/admin/devices", { name: $("name").value.trim() }).then(function (d) {
+      $("name").value = "";
+      load();
+      openQr(d);
+    }).catch(function (e) {
+      $("add-error").textContent = e.message;
+      show($("add-error"), true);
+    });
+  });
+
+  $("logout").addEventListener("click", logout);
+
+  if (key) start().catch(logout);
+})();
+</script>
+</body>
+</html>

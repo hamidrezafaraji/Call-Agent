@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -13,7 +14,8 @@ from sqlalchemy import select
 from . import __version__
 from .config import Settings, load_settings
 from .db import make_session_factory
-from .models import Call, Direction, Status
+from .devices import make_require_device, make_router
+from .models import Call, Device, Direction, Status
 from .numbers import find_numbers
 
 ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
@@ -30,6 +32,7 @@ class NumberOut(BaseModel):
 
 class CallOut(BaseModel):
     id: str
+    device_id: str | None
     direction: str
     phone_number: str
     started_at: datetime
@@ -47,6 +50,7 @@ def to_out(call: Call) -> CallOut:
         started_at = started_at.replace(tzinfo=timezone.utc)
     return CallOut(
         id=call.id,
+        device_id=call.device_id,
         direction=call.direction,
         phone_number=call.phone_number,
         started_at=started_at,
@@ -62,24 +66,48 @@ def to_out(call: Call) -> CallOut:
     )
 
 
+STATIC_DIR = Path(__file__).parent / "static"
+
+
+def resolve_admin_key(settings: Settings) -> str:
+    """Admin key from settings, or one generated on first run and kept in the data dir."""
+    if settings.admin_key:
+        return settings.admin_key
+    path = settings.data_dir / "admin.key"
+    if not path.exists():
+        settings.data_dir.mkdir(parents=True, exist_ok=True)
+        path.write_text(secrets.token_urlsafe(24), encoding="utf-8")
+        print(f"Generated admin key, saved in {path}")
+    return path.read_text(encoding="utf-8").strip()
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or load_settings()
     Session = make_session_factory(settings)
     app = FastAPI(title="Call Agent", version=__version__)
-    app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-    def require_key(x_api_key: Annotated[str | None, Header()] = None) -> None:
-        if settings.api_key and not secrets.compare_digest(x_api_key or "", settings.api_key):
+    admin_key = resolve_admin_key(settings)
+
+    def require_admin(x_api_key: Annotated[str | None, Header()] = None) -> None:
+        if not secrets.compare_digest(x_api_key or "", admin_key):
             raise HTTPException(401, "invalid API key")
 
-    auth = [Depends(require_key)]
+    require_device = make_require_device(Session)
+    auth = [Depends(require_admin)]
+    app.include_router(make_router(Session, settings, require_admin))
+
+    @app.get("/admin", include_in_schema=False)
+    def admin_page():
+        return FileResponse(STATIC_DIR / "admin.html")
 
     @app.get("/health")
     def health():
         return {"ok": True, "version": __version__}
 
-    @app.post("/api/calls", response_model=CallOut, dependencies=auth)
+    @app.post("/api/calls", response_model=CallOut)
     def upload_call(
+        device: Annotated[Device, Depends(require_device)],
         id: Annotated[str, Form()],
         direction: Annotated[str, Form()],
         phone_number: Annotated[str, Form()],
@@ -97,6 +125,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         with Session() as s:
             existing = s.get(Call, id)
+            if existing and existing.device_id != device.id:
+                raise HTTPException(409, "call id already used by another device")
             # Re-upload of a known call: accept it only to attach missing audio.
             if existing and (existing.audio_path or audio is None):
                 return to_out(existing)
@@ -113,7 +143,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     shutil.copyfileobj(audio.file, f)
                 audio_path = rel.as_posix()
 
-            call = existing or Call(id=id)
+            call = existing or Call(id=id, device_id=device.id)
             call.direction = direction
             call.phone_number = phone_number.strip()
             call.started_at = started_at
@@ -129,6 +159,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def list_calls(
         phone_number: str | None = None,
         status: str | None = None,
+        device_id: str | None = None,
         limit: Annotated[int, Query(ge=1, le=500)] = 100,
         offset: Annotated[int, Query(ge=0)] = 0,
     ):
@@ -137,6 +168,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             q = q.where(Call.phone_number == phone_number.strip())
         if status:
             q = q.where(Call.status == status)
+        if device_id:
+            q = q.where(Call.device_id == device_id)
         with Session() as s:
             return [to_out(c) for c in s.scalars(q)]
 

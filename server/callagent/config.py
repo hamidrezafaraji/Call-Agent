@@ -10,7 +10,9 @@ load_dotenv(SERVER_DIR / ".env")
 
 @dataclass(frozen=True)
 class Settings:
-    api_key: str
+    admin_key: str     # for the admin page and CRM integrations; generated on first run if empty
+    public_url: str    # address phones use to reach this server; auto-detected LAN IP if empty
+    port: int
     data_dir: Path
     whisper_model: str
     whisper_device: str
@@ -32,7 +34,9 @@ def load_settings() -> Settings:
     if not data_dir.is_absolute():
         data_dir = SERVER_DIR / data_dir
     return Settings(
-        api_key=os.getenv("CALLAGENT_API_KEY", ""),
+        admin_key=os.getenv("CALLAGENT_ADMIN_KEY", ""),
+        public_url=os.getenv("CALLAGENT_PUBLIC_URL", "").rstrip("/"),
+        port=int(os.getenv("CALLAGENT_PORT", "8100")),
         data_dir=data_dir,
         whisper_model=os.getenv("CALLAGENT_WHISPER_MODEL", "large-v3"),
         whisper_device=os.getenv("CALLAGENT_WHISPER_DEVICE", "cuda"),

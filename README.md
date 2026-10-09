@@ -16,8 +16,12 @@
 cd server
 py -3.11 -m venv .venv
 .venv/Scripts/python -m pip install -r requirements.txt
-copy .env.example .env      # و CALLAGENT_API_KEY را عوض کنید
+copy .env.example .env
 ```
+
+در اولین اجرا یک کلید مدیریت تصادفی در `server/data/admin.key` ساخته می‌شود
+(یا آن را با `CALLAGENT_ADMIN_KEY` در `.env` تعیین کنید).
+فایروال ویندوز باید اتصال ورودی به پورت 8100 را اجازه دهد تا گوشی‌ها به سرور برسند.
 
 اجرا (دو پنجره‌ی جدا):
 
@@ -27,16 +31,26 @@ copy .env.example .env      # و CALLAGENT_API_KEY را عوض کنید
 ```
 
 در اولین اجرای worker، مدل Whisper large-v3 (حدود ۳ گیگ) دانلود می‌شود.
-مستندات تعاملی API: `http://localhost:8100/docs`
+- صفحه‌ی مدیریت گوشی‌ها: `http://localhost:8100/admin`
+- مستندات تعاملی API: `http://localhost:8100/docs`
+
+## ثبت گوشی کارشناس
+
+۱. مدیر در `/admin` نام کارشناس را اضافه می‌کند و یک QR کد می‌گیرد (اعتبار ۲۴ ساعت، یک‌بارمصرف).
+۲. اپ گوشی QR را اسکن می‌کند؛ داخل آن آدرس سرور و کد فعال‌سازی است:
+   `{"v":1,"server":"http://192.168.1.4:8100","code":"ABCD-EFGH"}`
+۳. اپ کد را به `POST /api/devices/activate` می‌فرستد (به‌همراه برند، مدل و نسخه‌ی اندروید) و یک توکن اختصاصی می‌گیرد.
+۴. ارسال تماس‌ها با هدر `Authorization: Bearer <token>` انجام می‌شود.
+
+غیرفعال‌کردن یک گوشی فقط توکن همان گوشی را باطل می‌کند. «QR گوشی جدید» برای جابه‌جایی کارشناس
+به گوشی دیگر است؛ گوشی قبلی تا فعال‌شدن گوشی جدید کار می‌کند.
 
 ## API
 
-همه‌ی درخواست‌ها هدر `X-API-Key` می‌خواهند.
-
-- `POST /api/calls` (multipart): `id`، `direction` (`incoming`/`outgoing`)، `phone_number`،
+- `POST /api/calls` (multipart، با توکن گوشی): `id`، `direction` (`incoming`/`outgoing`)، `phone_number`،
   `started_at` (ISO 8601 با منطقه‌ی زمانی، مثل `2026-10-09T10:30:00+03:30`)، `duration_sec`، `audio` (اختیاری).
   ارسال دوباره‌ی همان `id` تماس تکراری نمی‌سازد.
-- `GET /api/calls?phone_number=&status=&limit=&offset=`
+- `GET /api/calls?phone_number=&status=&device_id=&limit=&offset=` (با هدر `X-API-Key` = کلید مدیریت؛ برای اتصال CRM)
 - `GET /api/calls/{id}`
 
 هر تماس فیلد `numbers` دارد: شماره‌تلفن‌ها و شماره‌کارت‌هایی که در متن گفته شده‌اند

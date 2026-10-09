@@ -3,6 +3,7 @@ uvicorn==0.34.0
 python-multipart==0.0.20
 SQLAlchemy==2.0.36
 python-dotenv==1.0.1
+segno==1.6.1  # QR codes for device activation
 faster-whisper==1.1.1
 requests==2.32.3  # used by faster-whisper but not declared as a dependency
 # CUDA 12 runtime libraries for faster-whisper on the GPU (Windows/Linux)

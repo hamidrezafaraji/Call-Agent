@@ -13,12 +13,21 @@ KEY = {"X-API-Key": "test-key"}
 
 @pytest.fixture
 def settings(tmp_path):
-    return replace(load_settings(), api_key="test-key", data_dir=tmp_path)
+    return replace(load_settings(), admin_key="test-key", data_dir=tmp_path, public_url="")
+
+
+def activate_device(client, name="Ali"):
+    d = client.post("/api/admin/devices", json={"name": name}, headers=KEY).json()
+    r = client.post("/api/devices/activate", json={"code": d["activation_code"], "brand": "samsung"})
+    assert r.status_code == 200, r.text
+    return {"Authorization": f"Bearer {r.json()['token']}"}
 
 
 @pytest.fixture
 def client(settings):
-    return TestClient(create_app(settings))
+    c = TestClient(create_app(settings))
+    c.dev_headers = activate_device(c)
+    return c
 
 
 def form(**over):
@@ -35,12 +44,20 @@ def form(**over):
 
 def upload(client, audio=True, **over):
     files = {"audio": ("rec.m4a", b"fake-audio", "audio/mp4")} if audio else None
-    return client.post("/api/calls", data=form(**over), files=files, headers=KEY)
+    return client.post("/api/calls", data=form(**over), files=files, headers=client.dev_headers)
 
 
-def test_requires_api_key(client):
-    r = client.post("/api/calls", data=form())
-    assert r.status_code == 401
+def test_upload_requires_device_token(client):
+    assert client.post("/api/calls", data=form()).status_code == 401
+    assert client.post("/api/calls", data=form(), headers=KEY).status_code == 401
+    bad = {"Authorization": "Bearer nope"}
+    assert client.post("/api/calls", data=form(), headers=bad).status_code == 401
+
+
+def test_reading_calls_requires_admin_key(client):
+    upload(client)
+    assert client.get("/api/calls").status_code == 401
+    assert client.get("/api/calls", headers=client.dev_headers).status_code == 401
 
 
 def test_upload_with_audio_is_queued(client, settings):
@@ -75,7 +92,7 @@ def test_rejects_bad_input(client, over):
 
 def test_rejects_unknown_audio_type(client):
     r = client.post(
-        "/api/calls", data=form(), files={"audio": ("x.exe", b"x")}, headers=KEY
+        "/api/calls", data=form(), files={"audio": ("x.exe", b"x")}, headers=client.dev_headers
     )
     assert r.status_code == 422
 
