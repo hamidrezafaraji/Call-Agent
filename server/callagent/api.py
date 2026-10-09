@@ -1,0 +1,135 @@
+import re
+import secrets
+import shutil
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Annotated
+
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
+from pydantic import BaseModel
+from sqlalchemy import select
+
+from . import __version__
+from .config import Settings, load_settings
+from .db import make_session_factory
+from .models import Call, Direction, Status
+
+ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+AUDIO_EXTS = {".m4a", ".mp3", ".amr", ".wav", ".ogg", ".opus", ".aac", ".3gp", ".flac", ".webm"}
+
+
+class CallOut(BaseModel):
+    id: str
+    direction: str
+    phone_number: str
+    started_at: datetime
+    duration_sec: int
+    has_audio: bool
+    status: str
+    transcript: str | None
+    error: str | None
+
+
+def to_out(call: Call) -> CallOut:
+    started_at = call.started_at
+    if started_at.tzinfo is None:  # SQLite drops the offset; values are stored in UTC
+        started_at = started_at.replace(tzinfo=timezone.utc)
+    return CallOut(
+        id=call.id,
+        direction=call.direction,
+        phone_number=call.phone_number,
+        started_at=started_at,
+        duration_sec=call.duration_sec,
+        has_audio=call.audio_path is not None,
+        status=call.status,
+        transcript=call.transcript,
+        error=call.error,
+    )
+
+
+def create_app(settings: Settings | None = None) -> FastAPI:
+    settings = settings or load_settings()
+    Session = make_session_factory(settings)
+    app = FastAPI(title="Call Agent", version=__version__)
+
+    def require_key(x_api_key: Annotated[str | None, Header()] = None) -> None:
+        if settings.api_key and not secrets.compare_digest(x_api_key or "", settings.api_key):
+            raise HTTPException(401, "invalid API key")
+
+    auth = [Depends(require_key)]
+
+    @app.get("/health")
+    def health():
+        return {"ok": True, "version": __version__}
+
+    @app.post("/api/calls", response_model=CallOut, dependencies=auth)
+    def upload_call(
+        id: Annotated[str, Form()],
+        direction: Annotated[str, Form()],
+        phone_number: Annotated[str, Form()],
+        started_at: Annotated[datetime, Form()],
+        duration_sec: Annotated[int, Form(ge=0)] = 0,
+        audio: Annotated[UploadFile | None, File()] = None,
+    ):
+        if not ID_RE.match(id):
+            raise HTTPException(422, "id must be 1-64 chars of letters, digits, - or _")
+        if direction not in Direction.ALL:
+            raise HTTPException(422, f"direction must be one of {Direction.ALL}")
+        if started_at.tzinfo is None:
+            raise HTTPException(422, "started_at must include a timezone offset")
+        started_at = started_at.astimezone(timezone.utc)
+
+        with Session() as s:
+            existing = s.get(Call, id)
+            # Re-upload of a known call: accept it only to attach missing audio.
+            if existing and (existing.audio_path or audio is None):
+                return to_out(existing)
+
+            audio_path = None
+            if audio is not None and audio.filename:
+                ext = Path(audio.filename).suffix.lower()
+                if ext not in AUDIO_EXTS:
+                    raise HTTPException(422, f"unsupported audio type {ext!r}")
+                rel = Path(f"{started_at:%Y}") / f"{started_at:%m}" / f"{id}{ext}"
+                dest = settings.audio_dir / rel
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                with dest.open("wb") as f:
+                    shutil.copyfileobj(audio.file, f)
+                audio_path = rel.as_posix()
+
+            call = existing or Call(id=id)
+            call.direction = direction
+            call.phone_number = phone_number.strip()
+            call.started_at = started_at
+            call.duration_sec = duration_sec
+            call.audio_path = audio_path
+            call.status = Status.QUEUED if audio_path else Status.NO_AUDIO
+            call.error = None
+            s.add(call)
+            s.commit()
+            return to_out(call)
+
+    @app.get("/api/calls", response_model=list[CallOut], dependencies=auth)
+    def list_calls(
+        phone_number: str | None = None,
+        status: str | None = None,
+        limit: Annotated[int, Query(ge=1, le=500)] = 100,
+        offset: Annotated[int, Query(ge=0)] = 0,
+    ):
+        q = select(Call).order_by(Call.started_at.desc()).limit(limit).offset(offset)
+        if phone_number:
+            q = q.where(Call.phone_number == phone_number.strip())
+        if status:
+            q = q.where(Call.status == status)
+        with Session() as s:
+            return [to_out(c) for c in s.scalars(q)]
+
+    @app.get("/api/calls/{call_id}", response_model=CallOut, dependencies=auth)
+    def get_call(call_id: str):
+        with Session() as s:
+            call = s.get(Call, call_id)
+            if call is None:
+                raise HTTPException(404, "call not found")
+            return to_out(call)
+
+    return app

@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# runtime data: database, uploaded call audio, downloaded Whisper models
+server/data/
+server/.env
+
+graphify-out/
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.apk
