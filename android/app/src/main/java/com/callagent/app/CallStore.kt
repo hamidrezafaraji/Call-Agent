@@ -98,7 +98,7 @@ class CallStore(context: Context) :
     fun recordAttempt(id: String, error: String) {
         writableDatabase.execSQL(
             "UPDATE calls SET attempts = attempts + 1, last_error = ?, updated_at = ? WHERE id = ?",
-            arrayOf(error, System.currentTimeMillis(), id),
+            arrayOf<Any>(error, System.currentTimeMillis(), id),
         )
     }
 

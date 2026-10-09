@@ -4,7 +4,7 @@ plugins {
 
 android {
     namespace = "com.callagent.app"
-    compileSdk = 35
+    compileSdk = 37 // the platform installed by Android Studio
 
     defaultConfig {
         applicationId = "com.callagent.app"

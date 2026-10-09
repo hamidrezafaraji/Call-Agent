@@ -15,3 +15,6 @@ android/build/
 android/app/build/
 android/local.properties
 *.apk
+
+# built APKs for testing
+builds/
