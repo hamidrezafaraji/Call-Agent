@@ -42,6 +42,7 @@ class SetupActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_setup)
+        padForSystemBars(findViewById(R.id.root))
         prefs = Prefs(this)
         consent = findViewById(R.id.consent)
         server = findViewById(R.id.server)

@@ -1,8 +1,24 @@
 package com.callagent.app
 
 import android.content.Context
+import android.os.Build
 
 object Diagnostics {
+    /** Marketing name ("Redmi Note 13 5G") rather than the model code ("23129RAA4G") when the phone tells us. */
+    fun phoneName(): String {
+        val market = try {
+            Class.forName("android.os.SystemProperties")
+                .getMethod("get", String::class.java)
+                .invoke(null, "ro.product.marketname") as? String
+        } catch (e: Exception) {
+            null
+        }
+        if (!market.isNullOrBlank()) return market
+        val model = Build.MODEL.orEmpty()
+        val brand = Build.MANUFACTURER.replaceFirstChar { it.uppercase() }
+        return if (model.startsWith(brand, ignoreCase = true)) model else "$brand $model"
+    }
+
     private const val WINDOW_MS = 7L * 24 * 3_600_000L
 
     /**

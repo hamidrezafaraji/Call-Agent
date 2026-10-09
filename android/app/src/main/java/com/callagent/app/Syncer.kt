@@ -9,6 +9,9 @@ import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import kotlin.math.max
 
+/** What one pass did, for the "sync now" feedback. */
+data class SyncResult(val newCalls: Int, val uploaded: Int, val error: String?)
+
 /**
  * One sync pass: read new calls from the call log, attach their recordings, upload.
  * Blocking; run it off the main thread (SyncWorker does).
@@ -31,21 +34,27 @@ class Syncer(private val context: Context) {
         const val KEEP_UPLOADED_MS = 30L * 24 * 3_600_000L
     }
 
-    fun run() {
+    private var newCalls = 0
+    private var uploaded = 0
+
+    fun run(): SyncResult {
         synchronized(lock) {
-            if (!prefs.isActivated) return
+            newCalls = 0
+            uploaded = 0
+            if (!prefs.isActivated) return SyncResult(0, 0, prefs.lastError)
             try {
                 collectCalls()
                 attachRecordings()
                 upload()
                 store.purgeUploadedBefore(System.currentTimeMillis() - KEEP_UPLOADED_MS)
-            OwnRecordings.cleanup(context)
+                OwnRecordings.cleanup(context)
                 if (!prefs.revoked) prefs.lastError = null
             } catch (e: Exception) {
                 prefs.lastError = describeError(context, e)
             } finally {
                 prefs.lastSyncAt = System.currentTimeMillis()
             }
+            return SyncResult(newCalls, uploaded, prefs.lastError)
         }
     }
 
@@ -57,7 +66,7 @@ class Syncer(private val context: Context) {
         var newest = prefs.newestCallSeen
         for (c in CallLogReader.readSince(context, since)) {
             if (c.startedAt < activatedAt) continue
-            store.insertIfAbsent(
+            if (store.insertIfAbsent(
                 PendingCall(
                     // unique per phone and stable across syncs
                     id = "$prefix-${c.logId}-${c.startedAt}",
@@ -68,7 +77,7 @@ class Syncer(private val context: Context) {
                     // unanswered calls have nothing to record
                     state = if (c.durationSec > 0) CallState.NEW else CallState.READY,
                 )
-            )
+            )) newCalls++
             newest = max(newest, c.startedAt)
         }
         prefs.newestCallSeen = newest
@@ -99,6 +108,7 @@ class Syncer(private val context: Context) {
             try {
                 api.uploadCall(call, context.contentResolver)
                 store.markUploaded(call.id)
+                uploaded++
                 OwnRecordings.deleteIfOwn(context, call.audioUri)
             } catch (e: ApiException) {
                 when (e.code) {

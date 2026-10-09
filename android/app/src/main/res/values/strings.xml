@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Call Agent</string>
+    <string name="ok">باشه</string>
 
     <!-- setup -->
     <string name="setup_title">فعال‌سازی گوشی</string>
-    <string name="consent_text">این برنامه گزارش تماس‌های این گوشی (شماره، زمان، مدت و ورودی/خروجی بودن) و فایل‌های ضبط تماس را برای سرور شرکت شما ارسال می‌کند تا به متن تبدیل و در سیستم شرکت ذخیره شوند. اطلاعات فقط به سرور شرکت خودتان فرستاده می‌شود. فقط تماس‌هایی که بعد از فعال‌سازی انجام شوند ارسال می‌شوند.</string>
+    <string name="consent_text">این برنامه گزارش تماس‌های این گوشی (شماره، زمان، مدت و ورودی/خروجی بودن) و صدای مکالمه‌ها را برای سرور شرکت شما ارسال می‌کند تا به متن تبدیل و در سیستم شرکت ذخیره شوند. اطلاعات فقط به سرور شرکت خودتان فرستاده می‌شود. فقط تماس‌هایی که بعد از فعال‌سازی انجام شوند ارسال می‌شوند.</string>
     <string name="consent_check">مطالعه کردم و موافقم</string>
     <string name="scan_qr">اسکن QR کد</string>
     <string name="scan_prompt">QR کد صفحه‌ی مدیریت را اسکن کنید</string>
@@ -12,7 +13,6 @@
     <string name="server_hint">آدرس سرور (مثلاً http://192.168.1.4:8100)</string>
     <string name="code_hint">کد فعال‌سازی (مثلاً ABCD-EFGH)</string>
     <string name="activate">فعال‌سازی</string>
-    <string name="activating">در حال فعال‌سازی…</string>
     <string name="consent_required">ابتدا متن بالا را تأیید کنید.</string>
     <string name="bad_qr">این QR کد مربوط به Call Agent نیست.</string>
     <string name="fill_fields">آدرس سرور و کد را وارد کنید.</string>
@@ -23,42 +23,22 @@
     <string name="server_label">سرور: %1$s</string>
     <string name="revoked">این گوشی توسط مدیر غیرفعال شده است.</string>
     <string name="reactivate">فعال‌سازی دوباره</string>
-    <string name="section_permissions">مجوزها</string>
-    <string name="perm_call_log">دسترسی به گزارش تماس‌ها</string>
-    <string name="perm_audio">دسترسی به فایل‌های ضبط تماس</string>
-    <string name="perm_battery">اجرا در پس‌زمینه (بدون محدودیت باتری)</string>
-    <string name="grant">اجازه دادن</string>
-    <string name="ok_mark">✓ فعال</string>
+
+    <string name="section_permissions">دسترسی‌ها</string>
+    <string name="perm_all_ok">✓ همه‌ی دسترسی‌ها فعال است.</string>
+    <string name="perm_missing">فعال نشده: %1$s</string>
+    <string name="fix_permissions">فعال‌کردن دسترسی‌ها</string>
+
     <string name="section_recordings">ضبط تماس</string>
+    <string name="rec_mode_app">✓ تماس‌ها توسط خود برنامه ضبط می‌شوند.</string>
+    <string name="rec_mode_phone">ضبط توسط برنامه خاموش است؛ فقط فایل‌های ضبط‌کننده‌ی خود گوشی (اگر داشته باشد) ارسال می‌شوند.</string>
     <string name="check_compat">بررسی سازگاری گوشی</string>
     <string name="checking">در حال بررسی…</string>
-    <string name="compat_none">در ۷ روز گذشته تماسی با مکالمه پیدا نشد. یک تماس آزمایشی بگیرید و دوباره بررسی کنید.</string>
-    <string name="compat_result">از %1$d تماس ۷ روز گذشته، برای %2$d تماس فایل ضبط پیدا شد.</string>
-    <string name="compat_full">✓ این گوشی کامل پشتیبانی می‌شود.</string>
-    <string name="compat_partial">بعضی تماس‌ها فایل ضبط ندارند. ضبط خودکار همه‌ی تماس‌ها را در تنظیمات برنامه‌ی تلفن روشن کنید.</string>
-    <string name="compat_zero">فایل ضبطی پیدا نشد. ضبط خودکار تماس را در تنظیمات برنامه‌ی تلفن روشن کنید. اگر روشن است، پوشه‌ی ضبط را دستی انتخاب کنید. بدون فایل ضبط، فقط گزارش تماس‌ها ارسال می‌شود.</string>
-    <string name="pick_folder">انتخاب دستی پوشه‌ی ضبط</string>
-    <string name="folder_label">پوشه‌ی انتخاب‌شده: %1$s</string>
-    <string name="folder_auto">پوشه‌ی ضبط: تشخیص خودکار</string>
-    <string name="section_queue">ارسال</string>
-    <string name="queue_status">منتظر فایل ضبط: %1$d — آماده‌ی ارسال: %2$d — ارسال‌شده: %3$d — خطا: %4$d</string>
-    <string name="last_sync">آخرین همگام‌سازی: %1$s</string>
-    <string name="never">هنوز انجام نشده</string>
-    <string name="last_error">آخرین خطا: %1$s</string>
-    <string name="sync_now">همگام‌سازی الان</string>
-    <string name="sync_started">همگام‌سازی شروع شد</string>
-    <string name="need_call_log">برای بررسی، اول دسترسی به گزارش تماس‌ها را بدهید.</string>
-    <string name="open_settings">این دسترسی رد شده است. آن را از تنظیمات برنامه فعال کنید.</string>
-
-    <!-- in-app recording -->
-    <string name="section_inapp">ضبط تماس توسط برنامه</string>
-    <string name="inapp_intro">برای گوشی‌هایی که خودشان ضبط تماس ندارند (مثل اکثر شیائومی‌ها). صدای شما همیشه ضبط می‌شود؛ وضوح صدای طرف مقابل به مدل گوشی بستگی دارد و با بلندگو کامل ضبط می‌شود.</string>
-    <string name="perm_mic">دسترسی به میکروفون</string>
-    <string name="perm_phone">تشخیص شروع و پایان تماس</string>
-    <string name="perm_notify">نمایش اعلان «در حال ضبط»</string>
-    <string name="accessibility_on">سرویس ضبط در «دسترس‌پذیری»</string>
-    <string name="restricted_hint">اگر در تنظیمات دسترس‌پذیری، Call Agent غیرفعال (خاکستری) بود: تنظیمات برنامه را باز کنید، از منوی ⋮ بالای صفحه «اجازه به تنظیمات محدود» (Allow restricted settings) را بزنید و دوباره امتحان کنید.</string>
-    <string name="open_app_settings">باز کردن تنظیمات برنامه</string>
+    <string name="compat_ok_title">گوشی شما (%1$s) با Call Agent سازگار است ✓</string>
+    <string name="compat_bad_title">گوشی شما (%1$s) هنوز آماده‌ی ضبط تماس نیست</string>
+    <string name="compat_app_ok">ضبط تماس توسط برنامه فعال است و از این به بعد مکالمه‌ها ضبط و ارسال می‌شوند.</string>
+    <string name="compat_result">ضبط‌کننده‌ی خود گوشی: از %1$s تماس ۷ روز گذشته، برای %2$s تماس فایل ضبط پیدا شد.</string>
+    <string name="compat_need_setup">برای ضبط مکالمه‌ها «فعال‌کردن دسترسی‌ها» را بزنید و سرویس ضبط را روشن کنید. تا آن موقع فقط گزارش تماس‌ها (بدون صدا) ارسال می‌شود.</string>
     <string name="audio_source">منبع صدا: %1$s</string>
     <string name="audio_source_title">منبع صدای ضبط</string>
     <string-array name="audio_source_names">
@@ -67,6 +47,52 @@
         <item>مکالمه</item>
         <item>خط تماس (فقط بعضی گوشی‌ها)</item>
     </string-array>
+    <string name="pick_folder">انتخاب دستی پوشه‌ی ضبط گوشی</string>
+    <string name="folder_label">پوشه‌ی ضبط گوشی: %1$s</string>
+    <string name="folder_auto">پوشه‌ی ضبط گوشی: تشخیص خودکار</string>
+
+    <string name="section_queue">ارسال</string>
+    <string name="queue_status">منتظر فایل ضبط: %1$s — آماده‌ی ارسال: %2$s — ارسال‌شده: %3$s — خطا: %4$s</string>
+    <string name="last_sync">آخرین همگام‌سازی: %1$s</string>
+    <string name="never">هنوز انجام نشده</string>
+    <string name="last_error">آخرین خطا: %1$s</string>
+    <string name="sync_now">همگام‌سازی الان</string>
+    <string name="syncing">در حال همگام‌سازی…</string>
+    <string name="sync_done_title">همگام‌سازی انجام شد ✓</string>
+    <string name="sync_failed_title">همگام‌سازی ناموفق بود</string>
+    <string name="sync_done">%1$s تماس جدید پیدا شد و %2$s تماس به سرور ارسال شد.</string>
+    <string name="sync_nothing">تماس جدیدی برای ارسال نبود؛ همه‌چیز به‌روز است.</string>
+    <string name="sync_failed">%1$s\n\nتماس‌ها روی گوشی می‌مانند و دفعه‌ی بعد ارسال می‌شوند.</string>
+
+    <!-- permission flow -->
+    <string name="p_intro_title">دسترسی‌های لازم</string>
+    <string name="p_intro_footer">در مرحله‌های بعد، مثل بقیه‌ی برنامه‌ها، اندروید برای هر مورد از شما اجازه می‌خواهد.</string>
+    <string name="p_continue">ادامه</string>
+    <string name="p_later">بعداً</string>
+    <string name="p_skip">رد کردن</string>
+    <string name="p_open_settings">رفتن به تنظیمات</string>
+    <string name="p_open_app_settings">باز کردن تنظیمات برنامه</string>
+    <string name="p_call_log">گزارش تماس‌ها</string>
+    <string name="p_call_log_why">برای ثبت شماره، زمان، مدت و ورودی/خروجی بودن تماس‌های کاری.</string>
+    <string name="p_phone">تشخیص تماس</string>
+    <string name="p_phone_why">تا شروع و پایان هر تماس را بدانیم و ضبط خودکار شروع و تمام شود.</string>
+    <string name="p_mic">میکروفون</string>
+    <string name="p_mic_why">برای ضبط مکالمه در گوشی‌هایی که خودشان ضبط تماس ندارند.</string>
+    <string name="p_audio">فایل‌های صوتی</string>
+    <string name="p_audio_why">برای پیدا کردن فایل‌هایی که ضبط‌کننده‌ی خود گوشی (اگر داشته باشد) ساخته است.</string>
+    <string name="p_notify">اعلان‌ها</string>
+    <string name="p_notify_why">تا هنگام ضبط، اعلان «در حال ضبط تماس» نمایش داده شود.</string>
+    <string name="p_battery">اجرا در پس‌زمینه</string>
+    <string name="p_battery_why">تا اندروید برای صرفه‌جویی باتری برنامه را نبندد و تماسی جا نماند.</string>
+    <string name="p_accessibility">سرویس ضبط (دسترس‌پذیری)</string>
+    <string name="p_accessibility_why">اندروید فقط با این سرویس اجازه می‌دهد مکالمه در پس‌زمینه ضبط شود. این سرویس محتوای صفحه‌ی شما را نمی‌خواند.</string>
+    <string name="p_accessibility_steps">این مورد فقط از تنظیمات روشن می‌شود:\n\n۱. در صفحه‌ی بعد «Call Agent» را پیدا کنید (معمولاً زیر «برنامه‌های دانلودشده»).\n۲. آن را باز کنید و کلیدش را روشن کنید.\n۳. با دکمه‌ی برگشت به برنامه برگردید.\n\nفقط کلید اصلی سرویس را روشن کنید، نه «میان‌بر» (Shortcut) آن را.</string>
+    <string name="p_restricted_title">یک مرحله‌ی دیگر</string>
+    <string name="p_restricted_steps">اندروید برای برنامه‌هایی که از فایل نصب شده‌اند، روشن‌کردن سرویس را قفل می‌کند (گزینه خاکستری است).\n\n۱. در صفحه‌ی بعد، منوی ⋮ بالای صفحه را بزنید.\n۲. «اجازه به تنظیمات محدود» (Allow restricted settings) را انتخاب و تأیید کنید.\n۳. برگردید؛ دوباره به صفحه‌ی سرویس می‌رویم.</string>
+    <string name="p_blocked_title">یک دسترسی رد شده است</string>
+    <string name="p_blocked_steps">اندروید دیگر برای این دسترسی سؤال نمی‌پرسد. در صفحه‌ی بعد «مجوزها» (Permissions) را باز کنید و دسترسی‌های Call Agent را روشن کنید.</string>
+
+    <!-- recording service -->
     <string name="accessibility_desc">Call Agent صفحه‌ی شما را نمی‌خواند. این سرویس فقط شروع و پایان تماس را تشخیص می‌دهد تا مکالمه ضبط و برای سرور شرکت ارسال شود.</string>
     <string name="rec_channel">ضبط تماس</string>
     <string name="rec_notification">در حال ضبط تماس</string>

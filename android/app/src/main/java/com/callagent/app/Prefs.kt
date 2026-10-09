@@ -11,6 +11,11 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("consent", false)
         set(v) = sp.edit { putBoolean("consent", v) }
 
+    /** The permissions overview popup was shown once. */
+    var permissionIntroShown: Boolean
+        get() = sp.getBoolean("perm_intro", false)
+        set(v) = sp.edit { putBoolean("perm_intro", v) }
+
     var serverUrl: String?
         get() = sp.getString("server", null)
         set(v) = sp.edit { putString("server", v) }
