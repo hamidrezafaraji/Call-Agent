@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Call Agent Admin</title>
 <link rel="stylesheet" href="/static/fonts.css">
+<link rel="stylesheet" href="/static/transcript-view.css">
 <style>
   :root {
     --bg: #f6f7f9; --card: #fff; --fg: #111827; --muted: #6b7280; --line: #e5e7eb;
@@ -54,6 +55,28 @@
   .qr { background: #fff; border-radius: 10px; padding: 8px; display: inline-block; line-height: 0; }
   .qr svg { width: 260px; height: 260px; }
   .code { font-size: 22px; letter-spacing: 2px; margin: 12px 0 4px; }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
+  .tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none;
+                 padding: 10px 16px; color: var(--muted); }
+  .tabs button.on { color: var(--fg); border-bottom-color: var(--accent); font-weight: 600; }
+  select { padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg);
+           color: var(--fg); font: inherit; min-width: 160px; }
+  tr.click { cursor: pointer; }
+  tr.click:hover td { background: rgba(127,127,127,.08); }
+  .badge.queued, .badge.processing { color: var(--wait); background: var(--wait-bg); }
+  .badge.done { color: var(--ok); background: var(--ok-bg); }
+  .badge.failed { color: var(--bad); background: var(--bad-bg); }
+  .badge.no_audio { color: var(--muted); background: rgba(127,127,127,.15); }
+  .snippet { color: var(--muted); font-size: 13px; max-width: 260px; overflow: hidden;
+             text-overflow: ellipsis; white-space: nowrap; }
+  dialog.wide { max-width: min(94vw, 720px); width: 100%; text-align: right; padding: 20px 22px; }
+  .call-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px 16px;
+               margin: 8px 0 14px; font-size: 14px; }
+  .call-meta span { color: var(--muted); font-size: 12px; display: block; }
+  audio { width: 100%; margin-bottom: 12px; }
+  .transcript-box { border: 1px solid var(--line); border-radius: 10px; padding: 34px 14px 14px;
+                    max-height: 55vh; overflow: auto; }
+  .dialog-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   @media (max-width: 640px) {
     thead { display: none; }
     tr { display: block; border-bottom: 1px solid var(--line); padding: 8px 0; }
@@ -66,7 +89,7 @@
 </head>
 <body>
 <main>
-  <h1>مدیریت گوشی‌های کارشناسان</h1>
+  <h1>Call Agent</h1>
 
   <section id="login" class="card">
     <p>کلید مدیریت را وارد کنید. اگر آن را تنظیم نکرده‌اید، در فایل <span class="ltr">data/admin.key</span> روی سرور ساخته شده است.</p>
@@ -78,6 +101,33 @@
   </section>
 
   <section id="app" class="hidden">
+    <nav class="tabs">
+      <button type="button" data-tab="calls">تماس‌ها</button>
+      <button type="button" data-tab="devices">گوشی‌های کارشناسان</button>
+    </nav>
+
+    <div id="tab-calls" class="hidden">
+      <div class="card">
+        <form class="row" id="filter-form">
+          <select id="f-device"><option value="">همه‌ی کارشناسان</option></select>
+          <input id="f-phone" class="ltr" inputmode="tel" placeholder="شماره، مثلاً 09121234567">
+          <button class="primary">جست‌وجو</button>
+          <button type="button" id="f-clear">همه</button>
+        </form>
+      </div>
+      <div class="card">
+        <table>
+          <thead><tr><th>زمان</th><th>کارشناس</th><th>شماره</th><th>نوع</th><th>مدت</th><th>متن</th></tr></thead>
+          <tbody id="calls"></tbody>
+        </table>
+        <p id="calls-empty" class="muted hidden">تماسی پیدا نشد.</p>
+        <div class="row" style="justify-content:center;margin-top:12px">
+          <button type="button" id="calls-more" class="hidden">نمایش تماس‌های قدیمی‌تر</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-devices" class="hidden">
     <div class="card">
       <div class="row" style="justify-content: space-between">
         <div>آدرس سرور برای گوشی‌ها: <span id="server" class="ltr"></span></div>
@@ -105,6 +155,7 @@
       </table>
       <p id="empty" class="muted hidden">هنوز گوشی‌ای اضافه نشده است.</p>
     </div>
+    </div>
   </section>
 </main>
 
@@ -117,11 +168,31 @@
   <form method="dialog"><button>بستن</button></form>
 </dialog>
 
+<dialog id="call-dialog" class="wide">
+  <div class="dialog-head">
+    <h2 id="call-title" style="font-size:18px;margin:0"></h2>
+    <form method="dialog"><button>بستن</button></form>
+  </div>
+  <div class="call-meta" id="call-meta"></div>
+  <audio id="call-audio" controls preload="none" class="hidden"></audio>
+  <div id="call-note" class="muted hidden" style="margin-bottom:12px"></div>
+  <div class="transcript-box" id="call-transcript"></div>
+</dialog>
+
+<script src="/static/transcript-view.js"></script>
 <script>
 (function () {
   "use strict";
   var KEY_STORE = "callagent.adminKey";
   var STATUS = { active: "فعال", pending: "در انتظار اسکن", revoked: "غیرفعال" };
+  var CALL_STATUS = { queued: "در صف تبدیل", processing: "در حال تبدیل", done: "متن آماده",
+                      failed: "خطا در تبدیل", no_audio: "بدون صدا" };
+  var DIRECTION = { incoming: "ورودی", outgoing: "خروجی" };
+  var TAB_STORE = "callagent.tab";
+  var PAGE = 50;
+  var deviceNames = {};
+  var callsOffset = 0;
+  var audioUrl = null;
   var $ = function (id) { return document.getElementById(id); };
   var key = null;
   try { key = sessionStorage.getItem(KEY_STORE); } catch (e) {}
@@ -162,6 +233,16 @@
   }
 
   function render(devices) {
+    deviceNames = {};
+    var sel = $("f-device"), chosen = sel.value;
+    while (sel.options.length > 1) sel.remove(1);
+    devices.forEach(function (d) {
+      deviceNames[d.id] = d.name;
+      var o = document.createElement("option");
+      o.value = d.id; o.textContent = d.name;
+      sel.appendChild(o);
+    });
+    sel.value = chosen;
     var tbody = $("devices");
     tbody.textContent = "";
     show($("empty"), devices.length === 0);
@@ -208,6 +289,146 @@
     $("qr-dialog").showModal();
   }
 
+  // ---- tabs ---------------------------------------------------------------
+
+  function showTab(name) {
+    document.querySelectorAll(".tabs button").forEach(function (b) {
+      b.classList.toggle("on", b.getAttribute("data-tab") === name);
+    });
+    show($("tab-calls"), name === "calls");
+    show($("tab-devices"), name === "devices");
+    try { localStorage.setItem(TAB_STORE, name); } catch (e) {}
+    if (name === "calls") loadCalls(true);
+  }
+
+  document.querySelectorAll(".tabs button").forEach(function (b) {
+    b.addEventListener("click", function () { showTab(b.getAttribute("data-tab")); });
+  });
+
+  // ---- calls --------------------------------------------------------------
+
+  var fa = new Intl.NumberFormat("fa-IR", { useGrouping: false });
+
+  function fmtDuration(sec) {
+    var m = Math.floor(sec / 60), s = sec % 60;
+    return fa.format(m) + ":" + (s < 10 ? "۰" : "") + fa.format(s);
+  }
+
+  function badge(status) {
+    var b = document.createElement("span");
+    b.className = "badge " + status;
+    b.textContent = CALL_STATUS[status] || status;
+    return b;
+  }
+
+  function ltr(text) {
+    var s = document.createElement("span");
+    s.className = "ltr";
+    s.textContent = text;
+    return s;
+  }
+
+  function loadCalls(reset) {
+    if (reset) callsOffset = 0;
+    var q = "?limit=" + PAGE + "&offset=" + callsOffset;
+    if ($("f-device").value) q += "&device_id=" + encodeURIComponent($("f-device").value);
+    var phone = $("f-phone").value.trim();
+    if (phone) q += "&phone_number=" + encodeURIComponent(phone);
+    return api("GET", "/api/calls" + q).then(function (calls) {
+      var tbody = $("calls");
+      if (reset) tbody.textContent = "";
+      calls.forEach(function (c) { tbody.appendChild(callRow(c)); });
+      callsOffset += calls.length;
+      show($("calls-empty"), callsOffset === 0);
+      show($("calls-more"), calls.length === PAGE);
+    });
+  }
+
+  function callRow(c) {
+    var tr = document.createElement("tr");
+    tr.className = "click";
+    tr.appendChild(cell("زمان", fmtDate(c.started_at)));
+    tr.appendChild(cell("کارشناس", deviceNames[c.device_id] || "—"));
+    tr.appendChild(cell("شماره", ltr(c.phone_number)));
+    tr.appendChild(cell("نوع", DIRECTION[c.direction] || c.direction));
+    tr.appendChild(cell("مدت", fmtDuration(c.duration_sec)));
+    var text = document.createElement("div");
+    if (c.status === "done" && c.transcript) {
+      text.className = "snippet";
+      text.textContent = c.transcript.replace(/\s+/g, " ");
+    } else {
+      text.appendChild(badge(c.status));
+    }
+    tr.appendChild(cell("متن", text));
+    tr.addEventListener("click", function () { openCall(c.id); });
+    return tr;
+  }
+
+  function meta(label, value) {
+    var d = document.createElement("div");
+    var l = document.createElement("span");
+    l.textContent = label;
+    d.appendChild(l);
+    d.appendChild(value instanceof Node ? value : document.createTextNode(value));
+    return d;
+  }
+
+  function openCall(id) {
+    api("GET", "/api/calls/" + encodeURIComponent(id)).then(function (c) {
+      $("call-title").textContent = "تماس " + (DIRECTION[c.direction] || "") + " — " + (deviceNames[c.device_id] || "");
+      var m = $("call-meta");
+      m.textContent = "";
+      m.appendChild(meta("شماره", ltr(c.phone_number)));
+      m.appendChild(meta("زمان", fmtDate(c.started_at)));
+      m.appendChild(meta("مدت مکالمه", fmtDuration(c.duration_sec)));
+      m.appendChild(meta("وضعیت", badge(c.status)));
+
+      var audio = $("call-audio");
+      if (audioUrl) { URL.revokeObjectURL(audioUrl); audioUrl = null; }
+      audio.removeAttribute("src");
+      show(audio, false);
+      if (c.has_audio) {
+        // the audio endpoint needs the admin key header, so fetch it and play from memory
+        fetch("/api/calls/" + encodeURIComponent(c.id) + "/audio", { headers: { "X-API-Key": key } })
+          .then(function (r) { if (!r.ok) throw new Error(); return r.blob(); })
+          .then(function (b) { audioUrl = URL.createObjectURL(b); audio.src = audioUrl; show(audio, true); })
+          .catch(function () {});
+      }
+
+      var note = $("call-note");
+      var notes = { queued: "صدای این تماس در صف تبدیل به متن است.",
+                    processing: "در حال تبدیل صدا به متن…",
+                    no_audio: "برای این تماس فایل صدایی ارسال نشده است.",
+                    failed: "تبدیل به متن ناموفق بود: " + (c.error || "") };
+      note.textContent = notes[c.status] || "";
+      show(note, !!notes[c.status]);
+
+      var box = $("call-transcript");
+      show(box, !!c.transcript);
+      if (c.transcript) CallAgent.renderTranscript(box, c.transcript, c.numbers);
+      $("call-dialog").showModal();
+    });
+  }
+
+  $("call-dialog").addEventListener("close", function () {
+    $("call-audio").pause();
+    if (audioUrl) { URL.revokeObjectURL(audioUrl); audioUrl = null; }
+  });
+
+  $("filter-form").addEventListener("submit", function (ev) { ev.preventDefault(); loadCalls(true); });
+  $("f-device").addEventListener("change", function () { loadCalls(true); });
+  $("f-clear").addEventListener("click", function () {
+    $("f-device").value = ""; $("f-phone").value = ""; loadCalls(true);
+  });
+  $("calls-more").addEventListener("click", function () { loadCalls(false); });
+
+  // new calls show up on their own while the calls tab is open
+  setInterval(function () {
+    if (key && !$("tab-calls").classList.contains("hidden") && !$("call-dialog").open && callsOffset <= PAGE) {
+      loadCalls(true).catch(function () {});
+    }
+  }, 15000);
+
   function load() {
     return api("GET", "/api/admin/devices").then(render);
   }
@@ -220,7 +441,11 @@
         ? "آدرس‌های دیگر این سرور: " + info.other_addresses.join("، ") : "";
       show($("login"), false);
       show($("app"), true);
-      return load();
+      return load().then(function () {
+        var tab = "calls";
+        try { tab = localStorage.getItem(TAB_STORE) || "calls"; } catch (e) {}
+        showTab(tab === "devices" ? "devices" : "calls");
+      });
     });
   }
 

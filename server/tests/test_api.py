@@ -147,3 +147,24 @@ def test_numbers_in_transcript_are_returned_with_spans(client, settings):
 
 def test_demo_page_is_served(client):
     assert client.get("/static/transcript-view.js").status_code == 200
+
+
+def test_audio_download_for_admin(client):
+    upload(client)
+    assert client.get("/api/calls/dev1-1001/audio").status_code == 401
+    r = client.get("/api/calls/dev1-1001/audio", headers=KEY)
+    assert r.status_code == 200
+    assert r.content == b"fake-audio"
+    assert r.headers["content-type"] == "audio/mp4"
+
+
+def test_no_audio_returns_404(client):
+    upload(client, audio=False)
+    assert client.get("/api/calls/dev1-1001/audio", headers=KEY).status_code == 404
+
+
+@pytest.mark.parametrize("raw", ["+989121234567", "00989121234567", "0912 123 4567", "09121234567"])
+def test_phone_numbers_are_normalized(client, raw):
+    assert upload(client, phone_number=raw).json()["phone_number"] == "09121234567"
+    found = client.get("/api/calls", params={"phone_number": "+989121234567"}, headers=KEY).json()
+    assert [c["id"] for c in found] == ["dev1-1001"]

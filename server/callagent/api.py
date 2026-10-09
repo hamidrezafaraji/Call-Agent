@@ -67,6 +67,19 @@ def to_out(call: Call) -> CallOut:
 
 
 STATIC_DIR = Path(__file__).parent / "static"
+AUDIO_TYPES = {".m4a": "audio/mp4", ".mp3": "audio/mpeg", ".amr": "audio/amr", ".wav": "audio/wav",
+               ".ogg": "audio/ogg", ".opus": "audio/ogg", ".aac": "audio/aac", ".3gp": "audio/3gpp",
+               ".flac": "audio/flac", ".webm": "audio/webm"}
+
+
+def normalize_phone(number: str) -> str:
+    """Iranian numbers in one form, so "+98912...", "0098912..." and "0912..." match."""
+    n = re.sub(r"[\s\-()]", "", number.strip())
+    if n.startswith("+98"):
+        return "0" + n[3:]
+    if n.startswith("0098"):
+        return "0" + n[4:]
+    return n
 
 
 def resolve_admin_key(settings: Settings) -> str:
@@ -145,7 +158,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
             call = existing or Call(id=id, device_id=device.id)
             call.direction = direction
-            call.phone_number = phone_number.strip()
+            call.phone_number = normalize_phone(phone_number)
             call.started_at = started_at
             call.duration_sec = duration_sec
             call.audio_path = audio_path
@@ -165,7 +178,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ):
         q = select(Call).order_by(Call.started_at.desc()).limit(limit).offset(offset)
         if phone_number:
-            q = q.where(Call.phone_number == phone_number.strip())
+            q = q.where(Call.phone_number == normalize_phone(phone_number))
         if status:
             q = q.where(Call.status == status)
         if device_id:
@@ -180,5 +193,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             if call is None:
                 raise HTTPException(404, "call not found")
             return to_out(call)
+
+    @app.get("/api/calls/{call_id}/audio", dependencies=auth)
+    def get_call_audio(call_id: str):
+        with Session() as s:
+            call = s.get(Call, call_id)
+            if call is None or not call.audio_path:
+                raise HTTPException(404, "no audio for this call")
+            path = settings.audio_dir / call.audio_path
+        if not path.is_file():
+            raise HTTPException(404, "audio file missing")
+        return FileResponse(path, media_type=AUDIO_TYPES.get(path.suffix.lower(), "application/octet-stream"))
 
     return app
