@@ -1,6 +1,7 @@
 /*
  * Renders a call transcript with its phone/card numbers highlighted.
- * Tap/click a number to see it in digits with a copy button; copying or tapping outside closes it.
+ * Tap/click a number to see it in digits with copy and (for phones) call buttons;
+ * copying, calling or tapping outside closes it.
  * The spoken text is shown unchanged, so a wrong guess can be checked against it.
  *
  * Usage (call = one item from GET /api/calls):
@@ -37,6 +38,12 @@
     'd="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 ' +
     '2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/></svg>';
 
+  var CALL_ICON =
+    '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" ' +
+    'd="M6.62 10.79a15.05 15.05 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.02-.24c1.12.37 2.33.57 3.57.57a1 1 0 0 1 ' +
+    '1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 ' +
+    '1.02l-2.2 2.2z"/></svg>';
+
   function makeNumber(spokenText, n) {
     var wrap = document.createElement("span");
     wrap.className = "ca-num ca-num-" + n.type + (n.exact ? "" : " ca-num-inexact");
@@ -70,6 +77,20 @@
       });
     });
     bubble.appendChild(btn);
+
+    if (n.type === "phone") {
+      // tel: link opens the phone dialer (or the PC's calling app)
+      var call = document.createElement("a");
+      call.className = "ca-call";
+      call.href = "tel:" + n.value;
+      call.title = "تماس";
+      call.innerHTML = CALL_ICON;
+      call.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        setTimeout(function () { wrap.classList.remove("ca-open"); }, 0);
+      });
+      bubble.appendChild(call);
+    }
 
     if (!n.exact) {
       var warn = document.createElement("span");

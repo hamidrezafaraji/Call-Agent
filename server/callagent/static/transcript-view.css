@@ -78,7 +78,8 @@
   user-select: all;
 }
 
-.ca-copy {
+.ca-copy,
+.ca-call {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -93,7 +94,9 @@
   opacity: 0.85;
 }
 
-.ca-copy:hover { opacity: 1; background: rgba(127, 127, 127, 0.25); }
+.ca-copy:hover,
+.ca-call:hover { opacity: 1; background: rgba(127, 127, 127, 0.25); }
+.ca-call { color: #22c55e; text-decoration: none; }
 .ca-copied { color: #22c55e; }
 
 .ca-warn {
