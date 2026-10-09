@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Peyda family: regular text, and "bold" maps to SemiBold -->
+<font-family xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <font
+        android:font="@font/peyda_regular"
+        android:fontStyle="normal"
+        android:fontWeight="400"
+        app:font="@font/peyda_regular"
+        app:fontStyle="normal"
+        app:fontWeight="400" />
+    <font
+        android:font="@font/peyda_semibold"
+        android:fontStyle="normal"
+        android:fontWeight="700"
+        app:font="@font/peyda_semibold"
+        app:fontStyle="normal"
+        app:fontWeight="700" />
+</font-family>

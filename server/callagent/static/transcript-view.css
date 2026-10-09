@@ -70,7 +70,9 @@
 }
 
 .ca-digits {
-  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-family: "Peyda", Tahoma, sans-serif;
+  font-variant-numeric: tabular-nums;
+  word-spacing: 0.4em; /* Peyda's space is narrow: keep digit groups apart */
   font-size: 16px;
   letter-spacing: 0.5px;
   user-select: all;

@@ -2,6 +2,61 @@
 <resources>
     <style name="Theme.CallAgent" parent="Theme.Material3.DayNight">
         <item name="colorPrimary">@color/brand</item>
+
+        <!-- Peyda everywhere: plain text views plus every Material text style we use -->
+        <item name="android:fontFamily">@font/peyda</item>
+        <item name="fontFamily">@font/peyda</item>
+        <item name="android:textViewStyle">@style/PeydaTextView</item>
+        <item name="textAppearanceHeadlineSmall">@style/Peyda.HeadlineSmall</item>
+        <item name="textAppearanceTitleMedium">@style/Peyda.TitleMedium</item>
+        <item name="textAppearanceTitleSmall">@style/Peyda.TitleSmall</item>
+        <item name="textAppearanceBodyLarge">@style/Peyda.BodyLarge</item>
+        <item name="textAppearanceBodyMedium">@style/Peyda.BodyMedium</item>
+        <item name="textAppearanceBodySmall">@style/Peyda.BodySmall</item>
+        <item name="textAppearanceLabelLarge">@style/Peyda.LabelLarge</item>
+        <item name="textAppearanceLabelMedium">@style/Peyda.LabelMedium</item>
+        <item name="textAppearanceLabelSmall">@style/Peyda.LabelSmall</item>
+    </style>
+
+    <style name="PeydaTextView" parent="Widget.AppCompat.TextView">
+        <item name="android:fontFamily">@font/peyda</item>
+    </style>
+
+    <style name="Peyda.HeadlineSmall" parent="TextAppearance.Material3.HeadlineSmall">
+        <item name="fontFamily">@font/peyda_semibold</item>
+        <item name="android:fontFamily">@font/peyda_semibold</item>
+    </style>
+    <style name="Peyda.TitleMedium" parent="TextAppearance.Material3.TitleMedium">
+        <item name="fontFamily">@font/peyda_semibold</item>
+        <item name="android:fontFamily">@font/peyda_semibold</item>
+    </style>
+    <style name="Peyda.TitleSmall" parent="TextAppearance.Material3.TitleSmall">
+        <item name="fontFamily">@font/peyda_medium</item>
+        <item name="android:fontFamily">@font/peyda_medium</item>
+    </style>
+    <style name="Peyda.BodyLarge" parent="TextAppearance.Material3.BodyLarge">
+        <item name="fontFamily">@font/peyda</item>
+        <item name="android:fontFamily">@font/peyda</item>
+    </style>
+    <style name="Peyda.BodyMedium" parent="TextAppearance.Material3.BodyMedium">
+        <item name="fontFamily">@font/peyda</item>
+        <item name="android:fontFamily">@font/peyda</item>
+    </style>
+    <style name="Peyda.BodySmall" parent="TextAppearance.Material3.BodySmall">
+        <item name="fontFamily">@font/peyda</item>
+        <item name="android:fontFamily">@font/peyda</item>
+    </style>
+    <style name="Peyda.LabelLarge" parent="TextAppearance.Material3.LabelLarge">
+        <item name="fontFamily">@font/peyda_medium</item>
+        <item name="android:fontFamily">@font/peyda_medium</item>
+    </style>
+    <style name="Peyda.LabelMedium" parent="TextAppearance.Material3.LabelMedium">
+        <item name="fontFamily">@font/peyda_medium</item>
+        <item name="android:fontFamily">@font/peyda_medium</item>
+    </style>
+    <style name="Peyda.LabelSmall" parent="TextAppearance.Material3.LabelSmall">
+        <item name="fontFamily">@font/peyda_medium</item>
+        <item name="android:fontFamily">@font/peyda_medium</item>
     </style>
 
     <style name="SectionTitle">
