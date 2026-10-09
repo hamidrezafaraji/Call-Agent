@@ -213,6 +213,11 @@
     <div class="segments" id="segments"></div>
   </div>
 
+  <div id="old-call-note" class="muted warn hidden" style="margin-top:12px">
+    این تماس قبل از قابلیت جداکردن بخش‌ها و تشخیص گوینده به متن تبدیل شده است.
+    برای انتخاب بخش‌ها و دیدن علامت «−» کارشناس و «+» مشتری، دکمه‌ی «تبدیل دوباره به متن» را در پایین بزنید.
+  </div>
+
   <div id="final-area" class="hidden">
     <div class="final-head">
       <h3>متن نهایی</h3>
@@ -468,11 +473,16 @@
       if (!hasSegs && c.transcript) CallAgent.renderTranscript(box, c.transcript, c.numbers);
       show($("seg-area"), hasSegs);
       if (hasSegs) {
-        var keep = c.final_text ? c.final_selection : null;
+        // a saved selection, if it still fits these segments; otherwise everything
+        var keep = c.final_text && c.final_selection.length &&
+                   c.final_selection.every(function (i) { return i < c.segments.length; }) ? c.final_selection : null;
         selected = c.segments.map(function (_, i) { return keep ? keep.indexOf(i) >= 0 : true; });
         renderSegments();
       }
       show($("final-area"), !!c.transcript);
+      // without segments there is nothing to select or rebuild from
+      show($("old-call-note"), !hasSegs && !!c.transcript);
+      show($("final-rebuild"), hasSegs);
       $("final-text").value = c.final_text || buildFinal();
       finalEdited = !!c.final_text;
       $("final-status").textContent = c.final_updated_at ? "آخرین ذخیره: " + fmtDate(c.final_updated_at) : "";
@@ -580,9 +590,19 @@
   });
 
   $("final-rebuild").addEventListener("click", function () {
+    var built = buildFinal();
+    var ta = $("final-text");
+    if (built === ta.value) {
+      $("final-status").textContent = "متن نهایی همین الان با بخش‌های انتخاب‌شده یکی است.";
+      $("final-status").className = "muted";
+      return;
+    }
     if (finalEdited && !confirm("ویرایش‌های دستی متن نهایی از بین می‌رود. ادامه می‌دهید؟")) return;
-    $("final-text").value = buildFinal();
+    ta.value = built;
     finalEdited = false;
+    var n = selected.filter(Boolean).length;
+    $("final-status").textContent = "متن از " + fa.format(n) + " بخش ساخته شد — هنوز ذخیره نشده";
+    $("final-status").className = "muted warn";
     updateFinalHint();
   });
 

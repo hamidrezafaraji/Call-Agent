@@ -212,5 +212,12 @@ def test_save_and_clear_final_text(client, settings):
 
 def test_retranscribe_requeues(client, settings):
     transcribed(client, settings, [seg(0, 1, "x")])
+    client.put("/api/calls/dev1-1001/final", json={"text": "x", "selection": [0]}, headers=KEY)
     r = client.post("/api/calls/dev1-1001/retranscribe", headers=KEY).json()
     assert r["status"] == "queued"
+    assert r["final_text"] == "x" and r["final_selection"] == []
+
+
+def test_pages_are_revalidated_after_updates(client):
+    assert client.get("/admin").headers["cache-control"] == "no-cache"
+    assert client.get("/static/transcript-view.js").headers["cache-control"] == "no-cache"

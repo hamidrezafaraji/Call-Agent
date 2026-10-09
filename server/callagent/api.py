@@ -133,6 +133,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="Call Agent", version=__version__)
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
+    @app.middleware("http")
+    async def revalidate_pages(request, call_next):
+        # after an update the browser must not keep showing the old admin page/scripts
+        response = await call_next(request)
+        if request.url.path == "/admin" or request.url.path.startswith("/static/"):
+            response.headers["Cache-Control"] = "no-cache"
+        return response
+
     admin_key = resolve_admin_key(settings)
 
     def require_admin(x_api_key: Annotated[str | None, Header()] = None) -> None:
@@ -250,6 +258,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 raise HTTPException(404, "no audio for this call")
             call.status = Status.QUEUED
             call.error = None
+            call.final_selection = None  # segment numbers will change; the final text itself stays
             s.commit()
             return to_out(call)
 
