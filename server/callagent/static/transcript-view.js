@@ -1,6 +1,6 @@
 /*
  * Renders a call transcript with its phone/card numbers highlighted.
- * Hover (or tap) a number to see it in digits with a copy button.
+ * Tap/click a number to see it in digits with a copy button; copying or tapping outside closes it.
  * The spoken text is shown unchanged, so a wrong guess can be checked against it.
  *
  * Usage (call = one item from GET /api/calls):
@@ -61,9 +61,12 @@
     btn.addEventListener("click", function (ev) {
       ev.stopPropagation();
       copyText(n.value).then(function () {
+        // flash the green check, then close the bubble
         btn.classList.add("ca-copied");
-        btn.title = "کپی شد";
-        setTimeout(function () { btn.classList.remove("ca-copied"); btn.title = "کپی"; }, 1500);
+        setTimeout(function () {
+          wrap.classList.remove("ca-open");
+          btn.classList.remove("ca-copied");
+        }, 400);
       });
     });
     bubble.appendChild(btn);
@@ -75,13 +78,13 @@
       bubble.appendChild(warn);
     }
 
-    // tap support for touch screens (hover covers the mouse)
-    wrap.addEventListener("click", function () {
-      var open = wrap.classList.toggle("ca-open");
+    // the bubble opens on tap/click only; taps inside it (e.g. selecting digits) keep it open
+    wrap.addEventListener("click", function (ev) {
+      if (bubble.contains(ev.target)) return;
+      wrap.classList.toggle("ca-open");
       document.querySelectorAll(".ca-num.ca-open").forEach(function (el) {
         if (el !== wrap) el.classList.remove("ca-open");
       });
-      if (open) wrap.focus();
     });
 
     wrap.appendChild(bubble);
