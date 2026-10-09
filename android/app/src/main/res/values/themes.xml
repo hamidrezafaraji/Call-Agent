@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.CallAgent" parent="Theme.Material3.DayNight">
+        <item name="colorPrimary">@color/brand</item>
+    </style>
+
+    <style name="SectionTitle">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">24dp</item>
+        <item name="android:layout_marginBottom">8dp</item>
+        <item name="android:textAppearance">?attr/textAppearanceTitleMedium</item>
+    </style>
+
+    <style name="PermButton" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:gravity">start|center_vertical</item>
+    </style>
+
+    <color name="brand">#2563EB</color>
+    <color name="ok">#15803D</color>
+    <color name="warn">#B45309</color>
+    <color name="bad">#B91C1C</color>
+    <color name="icon_bg">#2563EB</color>
+</resources>

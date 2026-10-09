@@ -6,7 +6,8 @@ and other customers' CRMs through its REST API, so keep it CRM-agnostic.
 
 - `server/` — Python 3.11 venv (`server/.venv`), FastAPI API (`python -m callagent`) and a separate
   transcription worker (`python -m callagent.worker`), SQLAlchemy + SQLite (`server/data/`, git-ignored).
-- `android/` — Kotlin collector app (not started yet).
+- `android/` — Kotlin collector app (minSdk 26, AGP 8.7.3, Kotlin 2.0.21, no Compose). See android/README.md.
+  Building needs a VPN (Google Maven is blocked in Iran). Gradle wrapper jar/scripts not generated yet.
 - Tests: `cd server && .venv/Scripts/python -m pytest -q`
 - Scope rule: v1 is deliberately minimal (call id, direction, time, transcript). Don't add features unasked.
 
