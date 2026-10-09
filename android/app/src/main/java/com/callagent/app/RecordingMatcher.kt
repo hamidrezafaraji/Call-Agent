@@ -12,7 +12,10 @@ data class AudioFile(
     val durationMs: Long,      // 0 = unknown
     val size: Long,
     val fromPickedFolder: Boolean = false,
-)
+    val ownStartedAt: Long = 0, // > 0: recorded by this app, starting at this time
+) {
+    val isOwn: Boolean get() = ownStartedAt > 0
+}
 
 /**
  * Pairs a call with its recording without knowing the phone brand: the recording is
@@ -60,9 +63,21 @@ object RecordingMatcher {
         return s
     }
 
-    fun bestMatch(call: PendingCall, files: List<AudioFile>, used: Set<String>): AudioFile? =
+    /** Our own recording starts when the call is answered (incoming: after ringing) or dialled. */
+    const val OWN_EARLY_MS = 10_000L
+    const val OWN_LATE_MS = 90_000L
+
+    fun bestMatch(call: PendingCall, files: List<AudioFile>, used: Set<String>): AudioFile? {
+        val own = files.asSequence()
+            .filter { it.isOwn && it.id !in used }
+            .filter { it.ownStartedAt in (call.startedAt - OWN_EARLY_MS)..(call.startedAt + OWN_LATE_MS) }
+            .minByOrNull { abs(it.ownStartedAt - call.startedAt) }
+        return own ?: phoneRecorderMatch(call, files, used)
+    }
+
+    private fun phoneRecorderMatch(call: PendingCall, files: List<AudioFile>, used: Set<String>): AudioFile? =
         files.asSequence()
-            .filter { it.id !in used }
+            .filter { !it.isOwn && it.id !in used }
             .filter { inTimeWindow(it, call) && durationMatches(it, call) }
             .filter { looksLikeCallRecording(it, call.number) }
             .minByOrNull { score(it, call) }

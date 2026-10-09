@@ -86,4 +86,30 @@ class RecordingMatcherTest {
         assertEquals(QrPayload("http://192.168.1.4:8100", "ABCD-EFGH"), qr)
         assertNull(QrPayload.parse("https://example.com"))
     }
+
+    private fun own(id: String, startOffsetSec: Long) =
+        AudioFile(id, "rec.m4a", "", call.endedAt, 0, 1000, ownStartedAt = start + startOffsetSec * 1000)
+
+    @Test
+    fun ownRecordingMatchedByStartTimeEvenWithRingingIncluded() {
+        // incoming call: recording starts when answered, 20s after the log's start time
+        assertEquals("o", RecordingMatcher.bestMatch(call, listOf(own("o", 20)), emptySet())?.id)
+    }
+
+    @Test
+    fun ownRecordingPreferredOverPhoneRecorderFile() {
+        val files = listOf(file("phone"), own("o", 1))
+        assertEquals("o", RecordingMatcher.bestMatch(call, files, emptySet())?.id)
+    }
+
+    @Test
+    fun ownRecordingOfAnotherCallIsNotUsed() {
+        assertNull(RecordingMatcher.bestMatch(call, listOf(own("later", 600)), emptySet()))
+    }
+
+    @Test
+    fun picksTheOwnRecordingClosestToTheCallStart() {
+        val files = listOf(own("a", 60), own("b", 2))
+        assertEquals("b", RecordingMatcher.bestMatch(call, files, emptySet())?.id)
+    }
 }

@@ -27,7 +27,7 @@ class RecordingFinder(private val context: Context, private val prefs: Prefs) {
         ContextCompat.checkSelfPermission(context, AUDIO_PERMISSION) == PackageManager.PERMISSION_GRANTED
 
     fun filesSince(sinceMillis: Long): List<AudioFile> {
-        val out = mutableListOf<AudioFile>()
+        val out = OwnRecordings.list(context, sinceMillis).toMutableList()
         if (hasPermission()) out += fromMediaStore(sinceMillis)
         out += fromPickedFolder(sinceMillis)
         return out.distinctBy { it.id }

@@ -33,8 +33,11 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
                 .enqueueUniquePeriodicWork("sync", ExistingPeriodicWorkPolicy.KEEP, req)
         }
 
-        fun syncNow(context: Context) {
-            val req = OneTimeWorkRequestBuilder<SyncWorker>().build()
+        /** [delaySec] > 0 after a call ends, so the phone has written it to the call log. */
+        fun syncNow(context: Context, delaySec: Long = 0) {
+            val req = OneTimeWorkRequestBuilder<SyncWorker>()
+                .setInitialDelay(delaySec, TimeUnit.SECONDS)
+                .build()
             WorkManager.getInstance(context).enqueueUniqueWork("sync-now", ExistingWorkPolicy.REPLACE, req)
         }
 

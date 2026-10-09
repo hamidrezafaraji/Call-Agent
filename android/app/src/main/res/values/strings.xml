@@ -50,6 +50,33 @@
     <string name="need_call_log">برای بررسی، اول دسترسی به گزارش تماس‌ها را بدهید.</string>
     <string name="open_settings">این دسترسی رد شده است. آن را از تنظیمات برنامه فعال کنید.</string>
 
+    <!-- in-app recording -->
+    <string name="section_inapp">ضبط تماس توسط برنامه</string>
+    <string name="inapp_intro">برای گوشی‌هایی که خودشان ضبط تماس ندارند (مثل اکثر شیائومی‌ها). صدای شما همیشه ضبط می‌شود؛ وضوح صدای طرف مقابل به مدل گوشی بستگی دارد و با بلندگو کامل ضبط می‌شود.</string>
+    <string name="perm_mic">دسترسی به میکروفون</string>
+    <string name="perm_phone">تشخیص شروع و پایان تماس</string>
+    <string name="perm_notify">نمایش اعلان «در حال ضبط»</string>
+    <string name="accessibility_on">سرویس ضبط در «دسترس‌پذیری»</string>
+    <string name="restricted_hint">اگر در تنظیمات دسترس‌پذیری، Call Agent غیرفعال (خاکستری) بود: تنظیمات برنامه را باز کنید، از منوی ⋮ بالای صفحه «اجازه به تنظیمات محدود» (Allow restricted settings) را بزنید و دوباره امتحان کنید.</string>
+    <string name="open_app_settings">باز کردن تنظیمات برنامه</string>
+    <string name="audio_source">منبع صدا: %1$s</string>
+    <string name="audio_source_title">منبع صدای ضبط</string>
+    <string-array name="audio_source_names">
+        <item>تشخیص گفتار (پیشنهادی)</item>
+        <item>میکروفون</item>
+        <item>مکالمه</item>
+        <item>خط تماس (فقط بعضی گوشی‌ها)</item>
+    </string-array>
+    <string name="accessibility_desc">Call Agent صفحه‌ی شما را نمی‌خواند. این سرویس فقط شروع و پایان تماس را تشخیص می‌دهد تا مکالمه ضبط و برای سرور شرکت ارسال شود.</string>
+    <string name="rec_channel">ضبط تماس</string>
+    <string name="rec_notification">در حال ضبط تماس</string>
+
+    <!-- relative time -->
+    <string name="just_now">همین الان</string>
+    <string name="minutes_ago">%1$s دقیقه پیش</string>
+    <string name="hours_ago">%1$s ساعت پیش</string>
+    <string name="days_ago">%1$s روز پیش</string>
+
     <!-- errors -->
     <string name="err_unreachable">سرور در دسترس نیست. گوشی باید به شبکه‌ی شرکت (یا VPN آن) وصل باشد.</string>
     <string name="err_server">خطای سرور (%1$d): %2$s</string>

@@ -39,6 +39,7 @@ class Syncer(private val context: Context) {
                 attachRecordings()
                 upload()
                 store.purgeUploadedBefore(System.currentTimeMillis() - KEEP_UPLOADED_MS)
+            OwnRecordings.cleanup(context)
                 if (!prefs.revoked) prefs.lastError = null
             } catch (e: Exception) {
                 prefs.lastError = describeError(context, e)
@@ -98,6 +99,7 @@ class Syncer(private val context: Context) {
             try {
                 api.uploadCall(call, context.contentResolver)
                 store.markUploaded(call.id)
+                OwnRecordings.deleteIfOwn(context, call.audioUri)
             } catch (e: ApiException) {
                 when (e.code) {
                     401 -> {

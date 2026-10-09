@@ -7,12 +7,13 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
-import android.text.format.DateUtils
+import android.os.Build
 import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
@@ -22,6 +23,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.NumberFormat
+import java.util.Locale
 
 /** Status screen: permissions, phone compatibility check, upload queue. */
 class MainActivity : AppCompatActivity() {
@@ -34,6 +37,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var permCallLog: Button
     private lateinit var permAudio: Button
     private lateinit var permBattery: Button
+    private lateinit var permMic: Button
+    private lateinit var permPhone: Button
+    private lateinit var permNotify: Button
+    private lateinit var accessibility: Button
+    private lateinit var restrictedHint: View
+    private lateinit var openAppSettings: Button
+    private lateinit var audioSource: Button
     private lateinit var checkCompat: Button
     private lateinit var compatResult: TextView
     private lateinit var folder: TextView
@@ -82,6 +92,13 @@ class MainActivity : AppCompatActivity() {
         permCallLog = findViewById(R.id.perm_call_log)
         permAudio = findViewById(R.id.perm_audio)
         permBattery = findViewById(R.id.perm_battery)
+        permMic = findViewById(R.id.perm_mic)
+        permPhone = findViewById(R.id.perm_phone)
+        permNotify = findViewById(R.id.perm_notify)
+        accessibility = findViewById(R.id.accessibility)
+        restrictedHint = findViewById(R.id.restricted_hint)
+        openAppSettings = findViewById(R.id.open_app_settings)
+        audioSource = findViewById(R.id.audio_source)
         checkCompat = findViewById(R.id.check_compat)
         compatResult = findViewById(R.id.compat_result)
         folder = findViewById(R.id.folder)
@@ -92,6 +109,16 @@ class MainActivity : AppCompatActivity() {
         permCallLog.setOnClickListener { ask(Manifest.permission.READ_CALL_LOG) }
         permAudio.setOnClickListener { ask(RecordingFinder.AUDIO_PERMISSION) }
         permBattery.setOnClickListener { askBatteryExemption() }
+        permMic.setOnClickListener { ask(Manifest.permission.RECORD_AUDIO) }
+        permPhone.setOnClickListener { ask(Manifest.permission.READ_PHONE_STATE) }
+        permNotify.setOnClickListener {
+            if (Build.VERSION.SDK_INT >= 33) ask(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        accessibility.setOnClickListener { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+        openAppSettings.setOnClickListener {
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+        }
+        audioSource.setOnClickListener { chooseAudioSource() }
         checkCompat.setOnClickListener { runCompatibilityCheck() }
         findViewById<Button>(R.id.pick_folder).setOnClickListener { folderPicker.launch(null) }
         findViewById<Button>(R.id.sync_now).setOnClickListener {
@@ -151,6 +178,21 @@ class MainActivity : AppCompatActivity() {
         showPermission(permCallLog, R.string.perm_call_log, granted(Manifest.permission.READ_CALL_LOG))
         showPermission(permAudio, R.string.perm_audio, granted(RecordingFinder.AUDIO_PERMISSION))
         showPermission(permBattery, R.string.perm_battery, batteryExempt())
+        showPermission(permMic, R.string.perm_mic, granted(Manifest.permission.RECORD_AUDIO))
+        showPermission(permPhone, R.string.perm_phone, granted(Manifest.permission.READ_PHONE_STATE))
+        if (Build.VERSION.SDK_INT >= 33) {
+            showPermission(permNotify, R.string.perm_notify, granted(Manifest.permission.POST_NOTIFICATIONS))
+        } else {
+            permNotify.visibility = View.GONE
+        }
+        val serviceOn = OwnRecordings.accessibilityEnabled(this)
+        showPermission(accessibility, R.string.accessibility_on, serviceOn)
+        accessibility.isEnabled = true // also lets the user turn it off again
+        restrictedHint.visibility = if (serviceOn) View.GONE else View.VISIBLE
+        openAppSettings.visibility = restrictedHint.visibility
+        val names = resources.getStringArray(R.array.audio_source_names)
+        val idx = RecordingService.SOURCES.indexOf(prefs.audioSource).coerceAtLeast(0)
+        audioSource.text = getString(R.string.audio_source, names[idx])
 
         folder.text = prefs.recordingsTreeUri?.let {
             getString(R.string.folder_label, Uri.parse(it).lastPathSegment?.substringAfter(':') ?: it)
@@ -165,14 +207,35 @@ class MainActivity : AppCompatActivity() {
             counts[CallState.FAILED] ?: 0,
         )
         val last = prefs.lastSyncAt
-        lastSync.text = getString(
-            R.string.last_sync,
-            if (last == 0L) getString(R.string.never)
-            else DateUtils.getRelativeTimeSpanString(last, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS)
-        )
+        lastSync.text = getString(R.string.last_sync, if (last == 0L) getString(R.string.never) else timeAgo(last))
         val err = prefs.lastError
         lastError.visibility = if (err.isNullOrBlank()) View.GONE else View.VISIBLE
         lastError.text = getString(R.string.last_error, err.orEmpty())
+    }
+
+    private fun chooseAudioSource() {
+        val names = resources.getStringArray(R.array.audio_source_names)
+        val current = RecordingService.SOURCES.indexOf(prefs.audioSource).coerceAtLeast(0)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.audio_source_title)
+            .setSingleChoiceItems(names, current) { dialog, which ->
+                prefs.audioSource = RecordingService.SOURCES[which]
+                dialog.dismiss()
+                refresh()
+            }
+            .show()
+    }
+
+    /** "۵ دقیقه پیش" in Persian regardless of the phone's language. */
+    private fun timeAgo(millis: Long): String {
+        val fa = NumberFormat.getInstance(Locale.forLanguageTag("fa"))
+        val min = (System.currentTimeMillis() - millis) / 60_000
+        return when {
+            min < 1 -> getString(R.string.just_now)
+            min < 60 -> getString(R.string.minutes_ago, fa.format(min))
+            min < 24 * 60 -> getString(R.string.hours_ago, fa.format(min / 60))
+            else -> getString(R.string.days_ago, fa.format(min / (24 * 60)))
+        }
     }
 
     /** Does this phone record calls where we can find them? Checks the last 7 days locally. */

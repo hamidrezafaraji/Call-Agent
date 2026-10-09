@@ -42,6 +42,11 @@ class Prefs(context: Context) {
         get() = sp.getString("recordings_tree", null)
         set(v) = sp.edit { putString("recordings_tree", v) }
 
+    /** MediaRecorder.AudioSource used for in-app call recording (6 = VOICE_RECOGNITION). */
+    var audioSource: Int
+        get() = sp.getInt("audio_source", 6)
+        set(v) = sp.edit { putInt("audio_source", v) }
+
     var lastSyncAt: Long
         get() = sp.getLong("last_sync", 0L)
         set(v) = sp.edit { putLong("last_sync", v) }
