@@ -104,15 +104,20 @@ def test_filter_by_phone_number(client):
     assert ids == ["b"]
 
 
+def seg(start, end, text, speaker=None):
+    return {"start": start, "end": end, "text": text, "speaker": speaker}
+
+
 class FakeTranscriber:
-    def __init__(self, fail=False):
+    def __init__(self, fail=False, segments=None):
         self.fail = fail
+        self.segments = segments or [seg(0.0, 1.5, "سلام، وقت بخیر", "agent")]
 
     def transcribe(self, path):
         assert path.exists()
         if self.fail:
             raise RuntimeError("boom")
-        return "سلام، وقت بخیر"
+        return self.segments
 
 
 def test_worker_transcribes_queued_call(client, settings):
@@ -136,13 +141,20 @@ def test_worker_records_failure(client, settings):
 
 def test_numbers_in_transcript_are_returned_with_spans(client, settings):
     upload(client)
-    fake = FakeTranscriber()
-    fake.transcribe = lambda path: "شماره‌م صفر نهصد و دوازده چهارصد و پنجاه و یک بیست و پنج نود و هفت هست"
+    fake = FakeTranscriber(segments=[
+        seg(0, 2, "سلام", "agent"),
+        seg(2, 9, "شماره‌م صفر نهصد و دوازده چهارصد و پنجاه و یک بیست و پنج نود و هفت هست", "customer"),
+    ])
     process_one(make_session_factory(settings), settings, fake)
     call = client.get("/api/calls/dev1-1001", headers=KEY).json()
     [n] = call["numbers"]
     assert n["type"] == "phone" and n["value"] == "09124512597" and n["exact"] is True
     assert call["transcript"][n["start"]:n["end"]].startswith("صفر نهصد")
+    # the same number, located inside its own segment
+    second = call["segments"][1]
+    assert second["speaker"] == "customer"
+    [m] = second["numbers"]
+    assert second["text"][m["start"]:m["end"]].startswith("صفر نهصد")
 
 
 def test_demo_page_is_served(client):
@@ -168,3 +180,37 @@ def test_phone_numbers_are_normalized(client, raw):
     assert upload(client, phone_number=raw).json()["phone_number"] == "09121234567"
     found = client.get("/api/calls", params={"phone_number": "+989121234567"}, headers=KEY).json()
     assert [c["id"] for c in found] == ["dev1-1001"]
+
+
+def transcribed(client, settings, segments):
+    upload(client)
+    process_one(make_session_factory(settings), settings, FakeTranscriber(segments=segments))
+
+
+def test_segments_keep_times_and_speakers(client, settings):
+    transcribed(client, settings, [seg(0.5, 3.0, "سلام", "agent"), seg(3.2, 5.0, "سلام بفرمایید", "customer")])
+    call = client.get("/api/calls/dev1-1001", headers=KEY).json()
+    assert [(x["start"], x["speaker"], x["text"]) for x in call["segments"]] == [
+        (0.5, "agent", "سلام"), (3.2, "customer", "سلام بفرمایید")]
+    assert call["transcript"] == "سلام\nسلام بفرمایید"
+    assert call["final_text"] is None
+
+
+def test_save_and_clear_final_text(client, settings):
+    transcribed(client, settings, [seg(0, 1, "الف", "agent"), seg(1, 2, "ب"), seg(2, 3, "ج", "customer")])
+    body = {"text": "- الف\n+ ج (اصلاح‌شده)", "selection": [2, 0, 2]}
+    assert client.put("/api/calls/dev1-1001/final", json=body).status_code == 401
+    r = client.put("/api/calls/dev1-1001/final", json=body, headers=KEY).json()
+    assert r["final_text"] == "- الف\n+ ج (اصلاح‌شده)"
+    assert r["final_selection"] == [0, 2]
+    assert r["final_updated_at"] is not None
+    # the original transcript is never touched
+    assert r["transcript"] == "الف\nب\nج"
+    cleared = client.put("/api/calls/dev1-1001/final", json={"text": "  "}, headers=KEY).json()
+    assert cleared["final_text"] is None and cleared["final_selection"] == []
+
+
+def test_retranscribe_requeues(client, settings):
+    transcribed(client, settings, [seg(0, 1, "x")])
+    r = client.post("/api/calls/dev1-1001/retranscribe", headers=KEY).json()
+    assert r["status"] == "queued"

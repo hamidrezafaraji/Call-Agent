@@ -76,6 +76,29 @@
   audio { width: 100%; margin-bottom: 12px; }
   .transcript-box { border: 1px solid var(--line); border-radius: 10px; padding: 34px 14px 14px;
                     max-height: 55vh; overflow: auto; }
+  .seg-tools { justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+  .seg-tools button { padding: 4px 10px; font-size: 13px; }
+  .legend b { font-weight: 600; }
+  .segments { border: 1px solid var(--line); border-radius: 10px; max-height: 42vh; overflow: auto; }
+  .seg { display: grid; grid-template-columns: auto auto auto 1fr; gap: 8px; align-items: start;
+         padding: 6px 10px; border-bottom: 1px solid var(--line); }
+  .seg:last-child { border-bottom: 0; }
+  .seg.off { opacity: .45; }
+  .seg.playing { background: rgba(37, 99, 235, .10); }
+  .seg input { flex: none; min-width: 0; width: 16px; height: 16px; margin-top: 11px; padding: 0; }
+  .seg-time { padding: 2px 6px; font-size: 12px; color: var(--accent); background: none; border: 0;
+              margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .seg-who { font-weight: 700; font-size: 18px; width: 14px; text-align: center; line-height: 2; }
+  .seg-who.agent { color: var(--accent); }
+  .seg-who.customer { color: var(--ok); }
+  .seg-text .ca-transcript { line-height: 2; }
+  .final-head { display: flex; justify-content: space-between; align-items: baseline; margin: 16px 0 6px; }
+  .final-head h3 { font-size: 15px; margin: 0; }
+  textarea { width: 100%; min-height: 150px; padding: 10px 12px; border: 1px solid var(--line);
+             border-radius: 10px; background: var(--bg); color: var(--fg); font: inherit; line-height: 1.9;
+             resize: vertical; }
+  .final-actions { margin-top: 8px; }
+  .ok-text { color: var(--ok); }
   .dialog-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   @media (max-width: 640px) {
     thead { display: none; }
@@ -176,7 +199,36 @@
   <div class="call-meta" id="call-meta"></div>
   <audio id="call-audio" controls preload="none" class="hidden"></audio>
   <div id="call-note" class="muted hidden" style="margin-bottom:12px"></div>
-  <div class="transcript-box" id="call-transcript"></div>
+  <div class="transcript-box hidden" id="call-transcript"></div>
+
+  <div id="seg-area" class="hidden">
+    <div class="row seg-tools">
+      <span class="legend muted"><b style="color:var(--accent)">−</b> کارشناس &nbsp; <b style="color:var(--ok)">+</b> مشتری
+        &nbsp;·&nbsp; بخش‌هایی را که در متن نهایی بیایند انتخاب کنید (Shift برای انتخاب یک بازه)</span>
+      <span class="row" style="gap:6px">
+        <button type="button" id="seg-all">همه</button>
+        <button type="button" id="seg-none">هیچ‌کدام</button>
+      </span>
+    </div>
+    <div class="segments" id="segments"></div>
+  </div>
+
+  <div id="final-area" class="hidden">
+    <div class="final-head">
+      <h3>متن نهایی</h3>
+      <span class="muted" id="final-hint"></span>
+    </div>
+    <textarea id="final-text" dir="rtl"></textarea>
+    <div class="row final-actions">
+      <button type="button" class="primary" id="final-save">ذخیره‌ی متن نهایی</button>
+      <button type="button" id="final-rebuild">ساختن دوباره از بخش‌های انتخاب‌شده</button>
+      <span id="final-status" class="muted"></span>
+    </div>
+  </div>
+
+  <div class="row" style="justify-content:flex-start;margin-top:14px">
+    <button type="button" id="retranscribe" class="hidden">تبدیل دوباره به متن</button>
+  </div>
 </dialog>
 
 <script src="/static/transcript-view.js"></script>
@@ -193,6 +245,11 @@
   var deviceNames = {};
   var callsOffset = 0;
   var audioUrl = null;
+  var current = null;      // call shown in the dialog
+  var selected = [];       // per segment: in the final text?
+  var finalEdited = false; // the user typed in the final text since it was last built
+  var lastClicked = -1;
+  var MARK = { agent: "-", customer: "+" };
   var $ = function (id) { return document.getElementById(id); };
   var key = null;
   try { key = sessionStorage.getItem(KEY_STORE); } catch (e) {}
@@ -353,9 +410,9 @@
     tr.appendChild(cell("نوع", DIRECTION[c.direction] || c.direction));
     tr.appendChild(cell("مدت", fmtDuration(c.duration_sec)));
     var text = document.createElement("div");
-    if (c.status === "done" && c.transcript) {
+    if (c.status === "done" && (c.final_text || c.transcript)) {
       text.className = "snippet";
-      text.textContent = c.transcript.replace(/\s+/g, " ");
+      text.textContent = (c.final_text ? "✎ " : "") + (c.final_text || c.transcript).replace(/\s+/g, " ");
     } else {
       text.appendChild(badge(c.status));
     }
@@ -403,12 +460,166 @@
       note.textContent = notes[c.status] || "";
       show(note, !!notes[c.status]);
 
+      current = c;
+      var hasSegs = c.segments && c.segments.length > 0;
       var box = $("call-transcript");
-      show(box, !!c.transcript);
-      if (c.transcript) CallAgent.renderTranscript(box, c.transcript, c.numbers);
+      // calls transcribed before segments existed: plain text only
+      show(box, !hasSegs && !!c.transcript);
+      if (!hasSegs && c.transcript) CallAgent.renderTranscript(box, c.transcript, c.numbers);
+      show($("seg-area"), hasSegs);
+      if (hasSegs) {
+        var keep = c.final_text ? c.final_selection : null;
+        selected = c.segments.map(function (_, i) { return keep ? keep.indexOf(i) >= 0 : true; });
+        renderSegments();
+      }
+      show($("final-area"), !!c.transcript);
+      $("final-text").value = c.final_text || buildFinal();
+      finalEdited = !!c.final_text;
+      $("final-status").textContent = c.final_updated_at ? "آخرین ذخیره: " + fmtDate(c.final_updated_at) : "";
+      $("final-status").className = "muted";
+      updateFinalHint();
+      show($("retranscribe"), c.has_audio && c.status !== "queued" && c.status !== "processing");
       $("call-dialog").showModal();
     });
   }
+
+  // ---- segments: pick the parts that matter, then edit the final text --------
+
+  function fmtClock(sec) { return fmtDuration(Math.floor(sec)); }
+
+  function renderSegments() {
+    var list = $("segments");
+    list.textContent = "";
+    current.segments.forEach(function (seg, i) {
+      var row = document.createElement("div");
+      row.className = "seg" + (selected[i] ? "" : " off");
+      row.setAttribute("data-i", i);
+
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = selected[i];
+      cb.addEventListener("click", function (ev) {
+        if (ev.shiftKey && lastClicked >= 0) {
+          var a = Math.min(lastClicked, i), b = Math.max(lastClicked, i);
+          for (var k = a; k <= b; k++) selected[k] = cb.checked;
+        } else {
+          selected[i] = cb.checked;
+        }
+        lastClicked = i;
+        selectionChanged();
+      });
+
+      var time = document.createElement("button");
+      time.type = "button";
+      time.className = "seg-time ltr";
+      time.textContent = fmtClock(seg.start);
+      time.title = "پخش از همین‌جا";
+      time.addEventListener("click", function () {
+        var audio = $("call-audio");
+        if (!audio.src) return;
+        audio.currentTime = seg.start;
+        audio.play();
+      });
+
+      var who = document.createElement("span");
+      who.className = "seg-who " + (seg.speaker || "");
+      who.textContent = seg.speaker === "agent" ? "−" : seg.speaker === "customer" ? "+" : "";
+      who.title = seg.speaker === "agent" ? "کارشناس" : seg.speaker === "customer" ? "مشتری" : "";
+
+      var text = document.createElement("div");
+      text.className = "seg-text";
+      CallAgent.renderTranscript(text, seg.text, seg.numbers);
+
+      row.appendChild(cb);
+      row.appendChild(time);
+      row.appendChild(who);
+      row.appendChild(text);
+      list.appendChild(row);
+    });
+  }
+
+  function buildFinal() {
+    if (!current || !current.segments || !current.segments.length) return current ? (current.transcript || "") : "";
+    return current.segments.filter(function (_, i) { return selected[i]; }).map(function (seg) {
+      var m = MARK[seg.speaker];
+      return (m ? m + " " : "") + seg.text;
+    }).join("\n");
+  }
+
+  function selectionChanged() {
+    document.querySelectorAll("#segments .seg").forEach(function (row) {
+      var i = +row.getAttribute("data-i");
+      row.classList.toggle("off", !selected[i]);
+      row.querySelector("input").checked = selected[i];
+    });
+    if (!finalEdited) $("final-text").value = buildFinal();
+    updateFinalHint();
+  }
+
+  function updateFinalHint() {
+    var n = selected.filter(Boolean).length, total = selected.length;
+    var hint = total ? fa.format(n) + " از " + fa.format(total) + " بخش انتخاب شده" : "";
+    if (finalEdited && total) hint += " — متن دستی ویرایش شده؛ برای اعمال انتخاب «ساختن دوباره» را بزنید";
+    $("final-hint").textContent = hint;
+  }
+
+  $("seg-all").addEventListener("click", function () {
+    selected = selected.map(function () { return true; });
+    selectionChanged();
+  });
+  $("seg-none").addEventListener("click", function () {
+    selected = selected.map(function () { return false; });
+    selectionChanged();
+  });
+
+  $("final-text").addEventListener("input", function () {
+    finalEdited = true;
+    $("final-status").textContent = "ذخیره نشده";
+    $("final-status").className = "muted warn";
+    updateFinalHint();
+  });
+
+  $("final-rebuild").addEventListener("click", function () {
+    if (finalEdited && !confirm("ویرایش‌های دستی متن نهایی از بین می‌رود. ادامه می‌دهید؟")) return;
+    $("final-text").value = buildFinal();
+    finalEdited = false;
+    updateFinalHint();
+  });
+
+  $("final-save").addEventListener("click", function () {
+    var sel = [];
+    selected.forEach(function (on, i) { if (on) sel.push(i); });
+    api("PUT", "/api/calls/" + encodeURIComponent(current.id) + "/final",
+        { text: $("final-text").value, selection: sel }).then(function (c) {
+      current.final_text = c.final_text;
+      finalEdited = !!c.final_text;
+      $("final-status").textContent = c.final_text ? "ذخیره شد ✓" : "متن نهایی پاک شد";
+      $("final-status").className = "ok-text";
+      updateFinalHint();
+      loadCalls(true);
+    }).catch(function (e) {
+      $("final-status").textContent = e.message;
+      $("final-status").className = "error";
+    });
+  });
+
+  $("retranscribe").addEventListener("click", function () {
+    if (!confirm("صدای این تماس دوباره به متن تبدیل شود؟ متن نهایی ذخیره‌شده باقی می‌ماند.")) return;
+    api("POST", "/api/calls/" + encodeURIComponent(current.id) + "/retranscribe").then(function () {
+      $("call-dialog").close();
+      loadCalls(true);
+    });
+  });
+
+  // highlight the line being played
+  $("call-audio").addEventListener("timeupdate", function () {
+    if (!current || !current.segments) return;
+    var t = $("call-audio").currentTime;
+    document.querySelectorAll("#segments .seg").forEach(function (row) {
+      var seg = current.segments[+row.getAttribute("data-i")];
+      row.classList.toggle("playing", t >= seg.start && t < seg.end);
+    });
+  });
 
   $("call-dialog").addEventListener("close", function () {
     $("call-audio").pause();

@@ -33,12 +33,12 @@
   border-bottom-color: var(--ca-warn);
 }
 
+/* placed by JS against the viewport (position: fixed), so scroll boxes and dialogs never clip it */
 .ca-bubble {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  right: 50%;
-  transform: translateX(50%);
-  z-index: 10;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1000;
   display: none;
   align-items: center;
   flex-wrap: wrap;
@@ -59,10 +59,18 @@
   content: "";
   position: absolute;
   top: 100%;
-  right: 50%;
-  transform: translateX(50%);
+  left: var(--ca-arrow, 50%); /* points at the number even when the bubble is pushed sideways */
+  transform: translateX(-50%);
   border: 6px solid transparent;
   border-top-color: var(--ca-bubble-bg);
+}
+
+/* not enough room above the number: show the bubble below it */
+.ca-bubble.ca-below::after {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: var(--ca-bubble-bg);
 }
 
 .ca-num.ca-open .ca-bubble {
@@ -104,4 +112,9 @@
   font-size: 12px;
   color: var(--ca-warn);
   text-align: center;
+}
+
+/* numbers written in digits: left-to-right, with visible gaps between groups */
+.ca-num[dir="ltr"] {
+  word-spacing: 0.3em;
 }

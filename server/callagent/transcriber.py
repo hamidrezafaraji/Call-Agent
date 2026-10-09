@@ -2,6 +2,7 @@ import os
 import sys
 from pathlib import Path
 
+from . import speakers
 from .config import Settings
 
 
@@ -33,12 +34,24 @@ class WhisperTranscriber:
             download_root=str(settings.data_dir / "models"),
         )
 
-    def transcribe(self, audio_file: Path) -> str:
+    def transcribe(self, audio_file: Path) -> list[dict]:
+        """Segments as [{"start": s, "end": s, "text": str, "speaker": "agent"|"customer"|None}]."""
+        from faster_whisper import decode_audio
+
+        audio = decode_audio(str(audio_file), sampling_rate=16_000)
         segments, _info = self.model.transcribe(
-            str(audio_file),
+            audio,
             language=self.language,
             beam_size=5,
             vad_filter=True,  # skip silence; Whisper invents text on silent stretches
             condition_on_previous_text=False,  # avoids repetition loops on long calls
         )
-        return "\n".join(seg.text.strip() for seg in segments if seg.text.strip())
+        out = [
+            {"start": round(seg.start, 2), "end": round(seg.end, 2), "text": seg.text.strip()}
+            for seg in segments
+            if seg.text.strip()
+        ]
+        levels = [speakers.loudness_db(audio, x["start"], x["end"]) for x in out]
+        for x, who in zip(out, speakers.label(levels)):
+            x["speaker"] = who
+        return out

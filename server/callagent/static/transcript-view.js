@@ -49,6 +49,11 @@
     wrap.className = "ca-num ca-num-" + n.type + (n.exact ? "" : " ca-num-inexact");
     wrap.tabIndex = 0;
     wrap.textContent = spokenText;
+    // "912 451 822 30" inside Persian text would show its groups in reverse order
+    if (!/[؀-ۿ]/.test(spokenText.replace(/[۰-۹]/g, ""))) {
+      wrap.dir = "ltr";
+      wrap.style.unicodeBidi = "isolate";
+    }
 
     var bubble = document.createElement("span");
     bubble.className = "ca-bubble";
@@ -102,10 +107,11 @@
     // the bubble opens on tap/click only; taps inside it (e.g. selecting digits) keep it open
     wrap.addEventListener("click", function (ev) {
       if (bubble.contains(ev.target)) return;
-      wrap.classList.toggle("ca-open");
+      var open = wrap.classList.toggle("ca-open");
       document.querySelectorAll(".ca-num.ca-open").forEach(function (el) {
         if (el !== wrap) el.classList.remove("ca-open");
       });
+      if (open) placeBubble(wrap, bubble);
     });
 
     wrap.appendChild(bubble);
@@ -130,10 +136,32 @@
     container.appendChild(document.createTextNode(text.slice(pos)));
   }
 
+  /** Above the number (below if there is no room), kept inside the window. */
+  function placeBubble(wrap, bubble) {
+    var r = wrap.getClientRects()[0] || wrap.getBoundingClientRect(); // first line of a wrapped number
+    var margin = 8, gap = 8;
+    var w = bubble.offsetWidth, h = bubble.offsetHeight;
+    var center = r.left + r.width / 2;
+    var left = Math.max(margin, Math.min(center - w / 2, window.innerWidth - w - margin));
+    var top = r.top - h - gap, below = false;
+    if (top < margin) { top = r.bottom + gap; below = true; }
+    bubble.style.left = left + "px";
+    bubble.style.top = top + "px";
+    bubble.style.setProperty("--ca-arrow", Math.max(12, Math.min(w - 12, center - left)) + "px");
+    bubble.classList.toggle("ca-below", below);
+  }
+
+  function closeAll() {
+    document.querySelectorAll(".ca-num.ca-open").forEach(function (el) { el.classList.remove("ca-open"); });
+  }
+
   document.addEventListener("click", function (ev) {
     if (!ev.target.closest || ev.target.closest(".ca-num")) return;
-    document.querySelectorAll(".ca-num.ca-open").forEach(function (el) { el.classList.remove("ca-open"); });
+    closeAll();
   });
+  // a fixed bubble would drift away from its number while scrolling
+  window.addEventListener("scroll", closeAll, true);
+  window.addEventListener("resize", closeAll);
 
   window.CallAgent = window.CallAgent || {};
   window.CallAgent.renderTranscript = renderTranscript;

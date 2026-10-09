@@ -1,3 +1,4 @@
+import json
 import re
 import secrets
 import shutil
@@ -8,14 +9,14 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from . import __version__
 from .config import Settings, load_settings
 from .db import make_session_factory
 from .devices import make_require_device, make_router
-from .models import Call, Device, Direction, Status
+from .models import Call, Device, Direction, Status, utcnow
 from .numbers import find_numbers
 
 ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
@@ -30,6 +31,19 @@ class NumberOut(BaseModel):
     exact: bool  # False: digit count looks off, check the spoken text
 
 
+class SegmentOut(BaseModel):
+    start: float  # seconds into the recording
+    end: float
+    text: str
+    speaker: str | None  # "agent" (shown "-"), "customer" (shown "+"), or unknown
+    numbers: list[NumberOut]
+
+
+class FinalIn(BaseModel):
+    text: str = Field(max_length=200_000)
+    selection: list[int] = []  # segment indexes the text was built from
+
+
 class CallOut(BaseModel):
     id: str
     device_id: str | None
@@ -41,13 +55,31 @@ class CallOut(BaseModel):
     status: str
     transcript: str | None
     numbers: list[NumberOut]
+    segments: list[SegmentOut]
+    final_text: str | None  # trimmed/edited text; what a CRM should show when present
+    final_selection: list[int]
+    final_updated_at: datetime | None
     error: str | None
 
 
+def numbers_in(text: str) -> list[NumberOut]:
+    return [NumberOut(type=n.type, start=n.start, end=n.end, value=n.value, exact=n.exact)
+            for n in find_numbers(text)]
+
+
+def utc(dt: datetime | None) -> datetime | None:
+    if dt is not None and dt.tzinfo is None:  # SQLite drops the offset; values are stored in UTC
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 def to_out(call: Call) -> CallOut:
-    started_at = call.started_at
-    if started_at.tzinfo is None:  # SQLite drops the offset; values are stored in UTC
-        started_at = started_at.replace(tzinfo=timezone.utc)
+    started_at = utc(call.started_at)
+    segments = [
+        SegmentOut(start=x["start"], end=x["end"], text=x["text"], speaker=x.get("speaker"),
+                   numbers=numbers_in(x["text"]))
+        for x in json.loads(call.segments or "[]")
+    ]
     return CallOut(
         id=call.id,
         device_id=call.device_id,
@@ -58,10 +90,11 @@ def to_out(call: Call) -> CallOut:
         has_audio=call.audio_path is not None,
         status=call.status,
         transcript=call.transcript,
-        numbers=[
-            NumberOut(type=n.type, start=n.start, end=n.end, value=n.value, exact=n.exact)
-            for n in find_numbers(call.transcript or "")
-        ],
+        numbers=numbers_in(call.transcript or ""),
+        segments=segments,
+        final_text=call.final_text,
+        final_selection=json.loads(call.final_selection or "[]"),
+        final_updated_at=utc(call.final_updated_at),
         error=call.error,
     )
 
@@ -192,6 +225,32 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             call = s.get(Call, call_id)
             if call is None:
                 raise HTTPException(404, "call not found")
+            return to_out(call)
+
+    @app.put("/api/calls/{call_id}/final", response_model=CallOut, dependencies=auth)
+    def save_final(call_id: str, body: FinalIn):
+        """Store the trimmed, hand-corrected text (empty text clears it)."""
+        with Session() as s:
+            call = s.get(Call, call_id)
+            if call is None:
+                raise HTTPException(404, "call not found")
+            text = body.text.strip()
+            call.final_text = text or None
+            call.final_selection = json.dumps(sorted(set(body.selection))) if text else None
+            call.final_updated_at = utcnow() if text else None
+            s.commit()
+            return to_out(call)
+
+    @app.post("/api/calls/{call_id}/retranscribe", response_model=CallOut, dependencies=auth)
+    def retranscribe(call_id: str):
+        """Queue the audio again, e.g. after a model or speaker-detection upgrade."""
+        with Session() as s:
+            call = s.get(Call, call_id)
+            if call is None or not call.audio_path:
+                raise HTTPException(404, "no audio for this call")
+            call.status = Status.QUEUED
+            call.error = None
+            s.commit()
             return to_out(call)
 
     @app.get("/api/calls/{call_id}/audio", dependencies=auth)

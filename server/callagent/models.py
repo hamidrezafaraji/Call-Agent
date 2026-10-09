@@ -70,6 +70,13 @@ class Call(Base):
 
     audio_path: Mapped[str | None] = mapped_column(String(512))
     transcript: Mapped[str | None] = mapped_column(Text)
+    # JSON list of {start, end, text, speaker} from the worker
+    segments: Mapped[str | None] = mapped_column(Text)
+    # text the user kept after trimming and editing; what a CRM should show
+    final_text: Mapped[str | None] = mapped_column(Text)
+    # JSON list of segment indexes the final text was built from
+    final_selection: Mapped[str | None] = mapped_column(Text)
+    final_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     status: Mapped[str] = mapped_column(String(16), index=True)
     error: Mapped[str | None] = mapped_column(Text)
 

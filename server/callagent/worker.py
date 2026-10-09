@@ -2,6 +2,7 @@
 
 Run with:  python -m callagent.worker
 """
+import json
 import logging
 import time
 
@@ -46,8 +47,13 @@ def process_one(Session: sessionmaker, settings: Settings, transcriber) -> bool:
     log.info("transcribing %s (%ss)", call.id, call.duration_sec)
     started = time.monotonic()
     try:
-        text = transcriber.transcribe(settings.audio_dir / call.audio_path)
-        values = {"status": Status.DONE, "transcript": text, "error": None}
+        segments = transcriber.transcribe(settings.audio_dir / call.audio_path)
+        values = {
+            "status": Status.DONE,
+            "transcript": "\n".join(x["text"] for x in segments),
+            "segments": json.dumps(segments, ensure_ascii=False),
+            "error": None,
+        }
         log.info("done %s in %.1fs", call.id, time.monotonic() - started)
     except Exception as e:  # keep the worker alive; the error is stored on the call
         log.exception("failed %s", call.id)
