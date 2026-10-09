@@ -1,0 +1,114 @@
+.ca-transcript {
+  --ca-accent: #2563eb;
+  --ca-accent-bg: rgba(37, 99, 235, 0.10);
+  --ca-warn: #b45309;
+  --ca-bubble-bg: #111827;
+  --ca-bubble-fg: #f9fafb;
+  white-space: pre-wrap;
+  line-height: 2;
+}
+
+@media (prefers-color-scheme: dark) {
+  .ca-transcript {
+    --ca-accent: #60a5fa;
+    --ca-accent-bg: rgba(96, 165, 250, 0.16);
+    --ca-warn: #fbbf24;
+    --ca-bubble-bg: #f9fafb;
+    --ca-bubble-fg: #111827;
+  }
+}
+
+.ca-num {
+  position: relative;
+  cursor: pointer;
+  color: var(--ca-accent);
+  background: var(--ca-accent-bg);
+  border-bottom: 1px dashed var(--ca-accent);
+  border-radius: 4px;
+  padding: 0 2px;
+  outline: none;
+}
+
+.ca-num-inexact {
+  border-bottom-color: var(--ca-warn);
+}
+
+.ca-bubble {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 50%;
+  transform: translateX(50%);
+  z-index: 10;
+  display: none;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--ca-bubble-bg);
+  color: var(--ca-bubble-fg);
+  font-size: 15px;
+  line-height: 1.4;
+  white-space: nowrap;
+  width: max-content;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  cursor: default;
+}
+
+.ca-bubble::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  right: 50%;
+  transform: translateX(50%);
+  border: 6px solid transparent;
+  border-top-color: var(--ca-bubble-bg);
+}
+
+/* invisible bridge so the bubble stays open while the mouse moves onto it */
+.ca-bubble::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 8px;
+}
+
+.ca-num:hover .ca-bubble,
+.ca-num:focus-within .ca-bubble,
+.ca-num.ca-open .ca-bubble {
+  display: inline-flex;
+}
+
+.ca-digits {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 16px;
+  letter-spacing: 0.5px;
+  user-select: all;
+}
+
+.ca-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+.ca-copy:hover { opacity: 1; background: rgba(127, 127, 127, 0.25); }
+.ca-copied { color: #22c55e; }
+
+.ca-warn {
+  flex-basis: 100%;
+  font-size: 12px;
+  color: var(--ca-warn);
+  text-align: center;
+}

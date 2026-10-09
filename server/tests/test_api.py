@@ -115,3 +115,18 @@ def test_worker_records_failure(client, settings):
     call = client.get("/api/calls/dev1-1001", headers=KEY).json()
     assert call["status"] == "failed"
     assert "boom" in call["error"]
+
+
+def test_numbers_in_transcript_are_returned_with_spans(client, settings):
+    upload(client)
+    fake = FakeTranscriber()
+    fake.transcribe = lambda path: "شماره‌م صفر نهصد و دوازده چهارصد و پنجاه و یک بیست و پنج نود و هفت هست"
+    process_one(make_session_factory(settings), settings, fake)
+    call = client.get("/api/calls/dev1-1001", headers=KEY).json()
+    [n] = call["numbers"]
+    assert n["type"] == "phone" and n["value"] == "09124512597" and n["exact"] is True
+    assert call["transcript"][n["start"]:n["end"]].startswith("صفر نهصد")
+
+
+def test_demo_page_is_served(client):
+    assert client.get("/static/transcript-view.js").status_code == 200

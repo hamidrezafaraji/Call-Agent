@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy import select
 
@@ -13,9 +14,18 @@ from . import __version__
 from .config import Settings, load_settings
 from .db import make_session_factory
 from .models import Call, Direction, Status
+from .numbers import find_numbers
 
 ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 AUDIO_EXTS = {".m4a", ".mp3", ".amr", ".wav", ".ogg", ".opus", ".aac", ".3gp", ".flac", ".webm"}
+
+
+class NumberOut(BaseModel):
+    type: str    # phone | card
+    start: int   # character span inside `transcript` (code points; same as JS indexes for Persian text)
+    end: int
+    value: str   # digits to copy
+    exact: bool  # False: digit count looks off, check the spoken text
 
 
 class CallOut(BaseModel):
@@ -27,6 +37,7 @@ class CallOut(BaseModel):
     has_audio: bool
     status: str
     transcript: str | None
+    numbers: list[NumberOut]
     error: str | None
 
 
@@ -43,6 +54,10 @@ def to_out(call: Call) -> CallOut:
         has_audio=call.audio_path is not None,
         status=call.status,
         transcript=call.transcript,
+        numbers=[
+            NumberOut(type=n.type, start=n.start, end=n.end, value=n.value, exact=n.exact)
+            for n in find_numbers(call.transcript or "")
+        ],
         error=call.error,
     )
 
@@ -51,6 +66,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or load_settings()
     Session = make_session_factory(settings)
     app = FastAPI(title="Call Agent", version=__version__)
+    app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
 
     def require_key(x_api_key: Annotated[str | None, Header()] = None) -> None:
         if settings.api_key and not secrets.compare_digest(x_api_key or "", settings.api_key):

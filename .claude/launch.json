@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "callagent-api",
+      "runtimeExecutable": "server/.venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "callagent", "--host", "127.0.0.1", "--port", "8100"],
+      "cwd": "server",
+      "port": 8100
+    }
+  ]
+}

@@ -39,6 +39,11 @@ copy .env.example .env      # و CALLAGENT_API_KEY را عوض کنید
 - `GET /api/calls?phone_number=&status=&limit=&offset=`
 - `GET /api/calls/{id}`
 
+هر تماس فیلد `numbers` دارد: شماره‌تلفن‌ها و شماره‌کارت‌هایی که در متن گفته شده‌اند
+(`type`، محدوده‌ی `start`/`end` در متن، `value` به‌صورت رقم، و `exact` اگر تعداد ارقام درست باشد).
+متن اصلی دست نمی‌خورد. کامپوننت آماده‌ی نمایش با بالون و دکمه‌ی کپی:
+`/static/transcript-view.js` و `.css` (نمونه: `/static/demo.html`).
+
 وضعیت‌ها: `queued` → `processing` → `done` / `failed`، و `no_audio` برای تماس بدون فایل ضبط.
 
 ## تست

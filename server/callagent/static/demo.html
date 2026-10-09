@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Transcript Demo</title>
+<link rel="stylesheet" href="transcript-view.css">
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: Tahoma, "Segoe UI", sans-serif; max-width: 760px; margin: 40px auto; padding: 0 16px;
+         background: Canvas; color: CanvasText; font-size: 17px; }
+  h1 { font-size: 20px; }
+  .card { border: 1px solid rgba(127,127,127,.3); border-radius: 12px; padding: 24px 20px; }
+  .hint { opacity: .7; font-size: 14px; }
+</style>
+</head>
+<body>
+<h1>نمونه‌ی نمایش متن تماس</h1>
+<p class="hint">ماوس را روی شماره‌های رنگی ببرید (در موبایل: لمس کنید).</p>
+<div class="card" id="transcript"></div>
+<script src="transcript-view.js"></script>
+<script>
+  var call = {"transcript": "سلام وقت بخیر، از شرکت پارس تماس می‌گیرم. بابت سفارش دویست کارتن چهل در شصت.\nلطفاً پیش‌فاکتور رو برای آقای محمدی بفرستید، شماره‌شون صفر نهصد و دوازده چهارصد و پنجاه و یک بیست و پنج نود و هفت هست.\nاگه جواب ندادن با این شماره تماس بگیرید: نهصد و سی و پنج یکصد و بیست سی چهل.\nخط رند همکارمون هم صفر نود چهل و پنج دویست چهل و پنج هست.\nمبلغ پیش‌پرداخت رو به کارت شش هزار و سی و هفت نه هزار و نهصد و دوازده چهار هزار و پانصد و شصت هزار و هشتصد و بیست و سه واریز می‌کنیم.\nدفتر مرکزی هم ۰۲۱-۸۸۸۸-۸۲۲۳ هست. ممنون، خداحافظ.", "numbers": [{"type": "phone", "start": 132, "end": 190, "text": "صفر نهصد و دوازده چهارصد و پنجاه و یک بیست و پنج نود و هفت", "value": "09124512597", "exact": true}, {"type": "phone", "start": 237, "end": 271, "text": "نهصد و سی و پنج یکصد و بیست سی چهل", "value": "09351203040", "exact": true}, {"type": "phone", "start": 292, "end": 325, "text": "صفر نود چهل و پنج دویست چهل و پنج", "value": "0904520045", "exact": false}, {"type": "card", "start": 358, "end": 449, "text": "شش هزار و سی و هفت نه هزار و نهصد و دوازده چهار هزار و پانصد و شصت هزار و هشتصد و بیست و سه", "value": "6037991245601823", "exact": true}, {"type": "phone", "start": 479, "end": 492, "text": "۰۲۱-۸۸۸۸-۸۲۲۳", "value": "02188888223", "exact": true}]};
+  CallAgent.renderTranscript(document.getElementById("transcript"), call.transcript, call.numbers);
+</script>
+</body>
+</html>
