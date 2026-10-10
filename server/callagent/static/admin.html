@@ -294,8 +294,17 @@
     return b;
   }
 
-  function render(devices) {
+  var qrDeviceId = null, qrOpenedAt = 0;
+
+  function render(devices, fetchedAt) {
     deviceNames = {};
+    // the phone scanned the QR on screen: its code is used up, so close the dialog
+    // (only on a list requested after the dialog opened, so a list from before a new code can't close it)
+    if ($("qr-dialog").open && fetchedAt > qrOpenedAt && devices.some(function (d) {
+      return d.id === qrDeviceId && !d.activation_code;
+    })) {
+      $("qr-dialog").close();
+    }
     var sel = $("f-device"), chosen = sel.value;
     while (sel.options.length > 1) sel.remove(1);
     devices.forEach(function (d) {
@@ -341,6 +350,8 @@
   }
 
   function openQr(d) {
+    qrDeviceId = d.id;
+    qrOpenedAt = Date.now();
     $("qr-title").textContent = "فعال‌سازی گوشی " + d.name;
     $("qr-code").textContent = d.activation_code;
     $("qr-expiry").textContent = "اعتبار تا " + fmtDate(d.activation_expires_at);
@@ -660,8 +671,16 @@
     }
   }, 15000);
 
+  // activations and "last seen" show up on their own while the devices tab or a QR is open
+  setInterval(function () {
+    if (key && (!$("tab-devices").classList.contains("hidden") || $("qr-dialog").open)) {
+      load().catch(function () {});
+    }
+  }, 5000);
+
   function load() {
-    return api("GET", "/api/admin/devices").then(render);
+    var fetchedAt = Date.now();
+    return api("GET", "/api/admin/devices").then(function (devices) { render(devices, fetchedAt); });
   }
 
   function start() {
